@@ -13,7 +13,10 @@ import mage.game.events.Listener;
 import mage.game.events.TableEvent;
 import mage.game.permanent.Permanent;
 import mage.game.permanent.PermanentToken;
+import mage.game.stack.Spell;
+import mage.game.stack.StackObject;
 import mage.players.Player;
+import mage.target.Target;
 import org.apache.log4j.Logger;
 
 import java.io.BufferedWriter;
@@ -50,6 +53,7 @@ public class GameLogRecorder implements Listener<TableEvent> {
     private int currentTurn = -1;
     private UUID currentActive = null;
     private boolean finished = false;
+    private String lastState = null;
 
     /**
      * @param deckNames player name -> deck name, reported in game_start
@@ -98,6 +102,116 @@ public class GameLogRecorder implements Listener<TableEvent> {
         if (currentTurn >= 0) {
             writeLifeChanges();
         }
+        writeState();
+    }
+
+    /**
+     * Full board after the message: what a spectator UI draws (both hands, battlefields with combat
+     * flags, graveyards, exile, the stack top first). Written only when something changed.
+     */
+    private void writeState() {
+        JsonObject players = new JsonObject();
+        for (Player player : game.getPlayers().values()) {
+            players.add(player.getName(), playerSnapshot(player));
+        }
+        JsonArray stack = stackSnapshot();
+        PhaseStep step = game.getTurnStepType();
+        String key = GSON.toJson(players) + GSON.toJson(stack) + step;
+        if (key.equals(lastState)) {
+            return;
+        }
+        lastState = key;
+        JsonObject state = turnEvent("state");
+        state.addProperty("step", step == null ? null : step.name());
+        state.add("players", players);
+        state.add("stack", stack);
+        write(state);
+    }
+
+    private JsonObject playerSnapshot(Player player) {
+        JsonObject p = new JsonObject();
+        p.addProperty("life", player.getLife());
+        p.addProperty("poison", player.getCountersCount(CounterType.POISON));
+        p.addProperty("library_count", player.getLibrary().size());
+        p.add("hand", cardList(player.getHand().getCards(game)));
+        p.add("graveyard", cardList(player.getGraveyard().getCards(game)));
+        List<Card> exiled = new ArrayList<>();
+        for (Card card : game.getExile().getAllCards(game)) {
+            if (card.isOwnedBy(player.getId())) {
+                exiled.add(card);
+            }
+        }
+        p.add("exile", cardList(exiled));
+        JsonArray battlefield = new JsonArray();
+        for (Permanent perm : game.getBattlefield().getAllActivePermanents(player.getId())) {
+            JsonObject c = cardRef(perm);
+            c.addProperty("id", perm.getId().toString());
+            c.addProperty("tapped", perm.isTapped());
+            c.addProperty("attacking", perm.isAttacking());
+            c.addProperty("blocking", perm.getBlocking() > 0);
+            if (perm.isCreature(game)) {
+                c.addProperty("power", perm.getPower().getValue());
+                c.addProperty("toughness", perm.getToughness().getValue());
+                c.addProperty("damage", perm.getDamage());
+                c.addProperty("summoning_sick", perm.hasSummoningSickness());
+            }
+            JsonObject counters = new JsonObject();
+            perm.getCounters(game).values().forEach(counter -> counters.addProperty(counter.getName(), counter.getCount()));
+            if (counters.size() > 0) {
+                c.add("counters", counters);
+            }
+            if (perm.getAttachedTo() != null) {
+                c.addProperty("attached_to", perm.getAttachedTo().toString());
+            }
+            battlefield.add(c);
+        }
+        p.add("battlefield", battlefield);
+        return p;
+    }
+
+    private JsonArray cardList(Collection<Card> cards) {
+        JsonArray out = new JsonArray();
+        for (Card card : cards) {
+            JsonObject c = cardRef(card);
+            c.addProperty("id", card.getId().toString());
+            out.add(c);
+        }
+        return out;
+    }
+
+    private JsonArray stackSnapshot() {
+        JsonArray stack = new JsonArray();
+        for (StackObject so : game.getStack()) { // top first
+            MageObject source = so instanceof Spell ? ((Spell) so).getCard() : game.getObject(so.getSourceId());
+            JsonObject o = source != null ? cardRef(source) : new JsonObject();
+            o.addProperty("id", so.getId().toString());
+            if (source == null) {
+                o.addProperty("name", so.getName());
+            }
+            // "name"/"set"/"number" identify the source card (for its image); "label" is what is on the stack
+            o.addProperty("label", so.getName());
+            o.addProperty("kind", so instanceof Spell ? "spell" : "ability");
+            Player controller = game.getPlayer(so.getControllerId());
+            o.addProperty("controller", controller == null ? null : controller.getName());
+            if (so.getStackAbility() != null) {
+                o.addProperty("text", cleanText(so.getStackAbility().getRule()));
+                JsonArray targets = new JsonArray();
+                for (Target target : so.getStackAbility().getTargets()) {
+                    for (UUID id : target.getTargets()) {
+                        MageObject t = game.getObject(id);
+                        Player tp = game.getPlayer(id);
+                        if (t != null) {
+                            targets.add(t.getName());
+                        } else if (tp != null) {
+                            targets.add(tp.getName());
+                        }
+                    }
+                }
+                o.add("targets", targets);
+            }
+            stack.add(o);
+        }
+        return stack;
     }
 
     /**
