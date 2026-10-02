@@ -1,7 +1,7 @@
 package mage.cards.b;
 
 import mage.abilities.Ability;
-import mage.abilities.common.EntersBattlefieldAbility;
+import mage.abilities.common.EntersBattlefieldWithCountersAbility;
 import mage.abilities.common.SimpleActivatedAbility;
 import mage.abilities.costs.common.SacrificeSourceCost;
 import mage.abilities.costs.common.TapSourceCost;
@@ -38,18 +38,14 @@ public final class BlastZone extends CardImpl {
 
 
         // Blast Zone enters the battlefield with a charge counter on it.
-        this.addAbility(new EntersBattlefieldAbility(
-                new AddCountersSourceEffect(CounterType.CHARGE.createInstance(1)),
-                "with a charge counter on it"
-        ));
+        this.addAbility(new EntersBattlefieldWithCountersAbility(CounterType.CHARGE.createInstance(1)));
 
         // {T}: Add {C}.
         this.addAbility(new ColorlessManaAbility());
 
         // {X}{X}, {T}: Put X charge counters on Blast Zone.
         Ability ability = new SimpleActivatedAbility(new AddCountersSourceEffect(
-                CounterType.CHARGE.createInstance(), GetXValue.instance, true
-        ), new ManaCostsImpl<>("{X}{X}"));
+                CounterType.CHARGE.createInstance(), GetXValue.instance), new ManaCostsImpl<>("{X}{X}"));
         ability.addCost(new TapSourceCost());
         this.addAbility(ability);
 

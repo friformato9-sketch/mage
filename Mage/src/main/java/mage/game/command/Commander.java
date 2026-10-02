@@ -52,7 +52,9 @@ public class Commander extends CommandObjectImpl {
                     case MODAL:
                     case MODAL_LEFT:
                     case MODAL_RIGHT:
+                    case TRANSFORMED_LEFT:
                     case ADVENTURE_SPELL:
+                    case OMEN_SPELL: // there are no legendary Omens, but add this for future-proofing.
                         // can be used from command zone
                         if (canUseAbilityFromCommandZone(spellAbility)) {
                             abilities.add(spellAbility.copyWithZone(Zone.COMMAND));
@@ -60,6 +62,7 @@ public class Commander extends CommandObjectImpl {
                         break;
                     case SPLICE: // only from hand
                     case SPLIT_AFTERMATH: // only from graveyard
+                    case PREPARE_SPELL: // only from exile when main card is Prepared
                         // can't use from command zone
                         break;
                     default:

@@ -8,6 +8,7 @@ import mage.abilities.effects.OneShotEffect;
 import mage.cards.Card;
 import mage.constants.Outcome;
 import mage.game.Game;
+import mage.game.permanent.Permanent;
 import mage.players.Player;
 import mage.target.targetpointer.FixedTargets;
 import mage.util.CardUtil;
@@ -25,12 +26,14 @@ public class ExileReturnBattlefieldNextEndStepTargetEffect extends OneShotEffect
     private boolean yourControl;
     private boolean textThatCard;
     private boolean exiledOnly;
+    private boolean tapped;
 
     public ExileReturnBattlefieldNextEndStepTargetEffect() {
         super(Outcome.Neutral);
         this.yourControl = false;
         this.textThatCard = true;
         this.exiledOnly = false;
+        this.tapped = false;
     }
 
     protected ExileReturnBattlefieldNextEndStepTargetEffect(final ExileReturnBattlefieldNextEndStepTargetEffect effect) {
@@ -38,6 +41,7 @@ public class ExileReturnBattlefieldNextEndStepTargetEffect extends OneShotEffect
         this.yourControl = effect.yourControl;
         this.textThatCard = effect.textThatCard;
         this.exiledOnly = effect.exiledOnly;
+        this.tapped = effect.tapped;
     }
 
     public ExileReturnBattlefieldNextEndStepTargetEffect underYourControl(boolean yourControl) {
@@ -55,13 +59,18 @@ public class ExileReturnBattlefieldNextEndStepTargetEffect extends OneShotEffect
         return this;
     }
 
+    public ExileReturnBattlefieldNextEndStepTargetEffect withTapped(boolean tapped) {
+        this.tapped = tapped;
+        return this;
+    }
+
     @Override
     public boolean apply(Game game, Ability source) {
         Player controller = game.getPlayer(source.getControllerId());
         if (controller == null) {
             return false;
         }
-        Set<Card> toExile = getTargetPointer().getTargets(game, source)
+        Set<Permanent> toExile = getTargetPointer().getTargets(game, source)
                 .stream()
                 .map(game::getPermanent)
                 .filter(Objects::nonNull)
@@ -71,12 +80,9 @@ public class ExileReturnBattlefieldNextEndStepTargetEffect extends OneShotEffect
         }
         controller.moveCardsToExile(toExile, source, game, true, CardUtil.getExileZoneId(game, source), CardUtil.getSourceName(game, source));
         Effect effect = yourControl
-                ? new ReturnToBattlefieldUnderYourControlTargetEffect(exiledOnly)
-                : new ReturnToBattlefieldUnderOwnerControlTargetEffect(false, exiledOnly);
-        effect.setTargetPointer(new FixedTargets(toExile
-                .stream()
-                .map(Card::getMainCard)
-                .collect(Collectors.toSet()), game));
+                ? new ReturnToBattlefieldUnderYourControlTargetEffect(exiledOnly, tapped)
+                : new ReturnToBattlefieldUnderOwnerControlTargetEffect(tapped, exiledOnly);
+        effect.setTargetPointer(new FixedTargets(CardUtil.getAllCardsFromPermanentsLeftBattlefield(toExile, game), game));
         game.addDelayedTriggeredAbility(new AtTheBeginOfNextEndStepDelayedTriggeredAbility(effect), source);
         return true;
     }
@@ -101,6 +107,9 @@ public class ExileReturnBattlefieldNextEndStepTargetEffect extends OneShotEffect
             text += plural ? "them" : "it";
         }
         text += " to the battlefield";
+        if (tapped) {
+            text += " tapped";
+        }
         if (yourControl) {
             text += " under your control";
         } else {

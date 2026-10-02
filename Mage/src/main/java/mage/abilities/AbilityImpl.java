@@ -7,10 +7,9 @@ import mage.abilities.common.EntersBattlefieldAbility;
 import mage.abilities.condition.Condition;
 import mage.abilities.costs.*;
 import mage.abilities.costs.common.PayLifeCost;
-import mage.abilities.costs.mana.ManaCost;
-import mage.abilities.costs.mana.ManaCosts;
-import mage.abilities.costs.mana.ManaCostsImpl;
-import mage.abilities.costs.mana.VariableManaCost;
+import mage.abilities.costs.common.WaterbendCost;
+import mage.abilities.costs.common.WaterbendXCost;
+import mage.abilities.costs.mana.*;
 import mage.abilities.effects.ContinuousEffect;
 import mage.abilities.effects.Effect;
 import mage.abilities.effects.Effects;
@@ -25,6 +24,7 @@ import mage.choices.ChoiceHintType;
 import mage.choices.ChoiceImpl;
 import mage.constants.*;
 import mage.filter.FilterMana;
+import mage.filter.StaticFilters;
 import mage.game.Game;
 import mage.game.GameInfo;
 import mage.game.command.Dungeon;
@@ -40,8 +40,10 @@ import mage.game.stack.StackAbility;
 import mage.players.Player;
 import mage.target.Target;
 import mage.target.TargetCard;
+import mage.target.TargetPermanent;
 import mage.target.Targets;
 import mage.target.common.TargetCardInLibrary;
+import mage.target.common.TargetControlledPermanent;
 import mage.target.targetadjustment.GenericTargetAdjuster;
 import mage.target.targetadjustment.TargetAdjuster;
 import mage.util.CardUtil;
@@ -51,6 +53,7 @@ import mage.watchers.Watcher;
 import org.apache.log4j.Logger;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author BetaSteward_at_googlemail.com
@@ -222,9 +225,20 @@ public abstract class AbilityImpl implements Ability {
             if (this instanceof TriggeredAbility) {
                 for (UUID modeId : this.getModes().getSelectedModes()) {
                     this.getModes().setActiveMode(modeId);
+                    logger.debug("AbilityImpl.resolve as triggered ability: " + this.getModes().getMode());
+                    result = resolveMode(game);
+                }
+            } else if (this instanceof ActivatedAbility && !(this instanceof SpellAbility)) {
+                // 2026-08-09
+                // there aren't any cards with multiple modes in activated ability (except spells)
+                // but support added for future releases, see ChooseModalAbilityAITest
+                for (UUID modeId : this.getModes().getSelectedModes()) {
+                    this.getModes().setActiveMode(modeId);
+                    logger.debug("AbilityImpl.resolve as activated and non-spell ability: " + this.getModes().getMode());
                     result = resolveMode(game);
                 }
             } else {
+                logger.debug("AbilityImpl.resolve as other ability: " + this.getModes().getMode());
                 result = resolveMode(game);
             }
         }
@@ -361,6 +375,7 @@ public abstract class AbilityImpl implements Ability {
         // Phyrexian mana symbols, the player announces whether they intend to pay 2
         // life or the corresponding colored mana cost for each of those symbols.
         AbilityImpl.handlePhyrexianCosts(game, this, this, this.getManaCostsToPay());
+        AbilityImpl.handleWaterbendingCosts(game, this, this, this.getManaCostsToPay());
 
         // 20241022 - 601.2b
         // Not yet included in 601.2b but this is where it will be
@@ -457,18 +472,14 @@ public abstract class AbilityImpl implements Ability {
             game.getContinuousEffects().costModification(this, game);
         }
 
-        UUID activatorId = controllerId;
-        if ((this instanceof ActivatedAbilityImpl) && ((ActivatedAbilityImpl) this).getActivatorId() != null) {
-            activatorId = ((ActivatedAbilityImpl) this).getActivatorId();
-        }
         //changed to pay non mana first because of lands abilities
         //20100716 - 601.2g
-        if (!getCosts().pay(this, game, this, activatorId, noMana, null)) {
+        if (!getCosts().pay(this, game, this, controllerId, noMana, null)) {
             logger.debug("activate failed - non mana costs");
             return false;
         }
         //20100716 - 601.2f  (noMana is not used here, because mana costs were cleared for this ability before adding additional costs and applying cost modification effects)
-        if (!getManaCostsToPay().pay(this, game, this, activatorId, false, null)) {
+        if (!getManaCostsToPay().pay(this, game, this, controllerId, false, null)) {
             return false; // cancel during mana payment
         }
 
@@ -517,6 +528,7 @@ public abstract class AbilityImpl implements Ability {
                 case MORPH:
                 case DISGUISE:
                 case PLOT:
+                case MUTATE:
                     // from Snapcaster Mage:
                     // If you cast a spell from a graveyard using its flashback ability, you can't pay other alternative costs
                     // (such as that of Foil). (2018-12-07)
@@ -656,7 +668,7 @@ public abstract class AbilityImpl implements Ability {
             if (!(variableCost instanceof VariableManaCost) && !((Cost) variableCost).isPaid()) {
                 int xValue = variableCost.announceXValue(this, game);
                 Cost fixedCost = variableCost.getFixedCostsFromAnnouncedValue(xValue);
-                addCost(fixedCost);
+                addCost(fixedCost, this.getCosts().indexOf(variableCost));
                 // set the xcosts to paid
                 variableCost.setAmount(xValue, xValue, false);
                 ((Cost) variableCost).setPaid();
@@ -697,6 +709,38 @@ public abstract class AbilityImpl implements Ability {
                 manaCostsToPay.incrPhyrexianPaid(); // mark it as real phyrexian pay, e.g. for planeswalkers with Compleated ability
             }
         }
+    }
+
+    public static void handleWaterbendingCosts(Game game, Ability source, Ability abilityToPay, ManaCosts manaCostsToPay) {
+        Player controller = game.getPlayer(source.getControllerId());
+        if (controller == null) {
+            return;
+        }
+
+        int total = CardUtil
+                .castStream(manaCostsToPay, WaterbendCost.class)
+                .mapToInt(WaterbendCost::manaValue)
+                .sum();
+        if (total < 1) {
+            return;
+        }
+        TargetPermanent target = new TargetControlledPermanent(
+                0, total, StaticFilters.FILTER_CONTROLLED_UNTAPPED_ARTIFACT_OR_CREATURE, true
+        );
+        target.withChooseHint("to tap for waterbending");
+        controller.choose(Outcome.Tap, target, source, game);
+        Set<Permanent> permanents = target
+                .getTargets()
+                .stream()
+                .map(game::getPermanent)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        for (Permanent permanent : permanents) {
+            permanent.tap(source, game);
+        }
+        manaCostsToPay.removeIf(WaterbendCost.class::isInstance);
+        abilityToPay.addCost(new GenericManaCost(total - permanents.size()));
+        game.fireEvent(GameEvent.getEvent(GameEvent.EventType.WATERBENDED, source.getSourceId(), source, controller.getId(), total));
     }
 
     /**
@@ -744,7 +788,7 @@ public abstract class AbilityImpl implements Ability {
     }
 
     /**
-     * 601.2b Choose targets for costs that have to be chosen early.
+     * 601.5 Choose targets for costs that have to be chosen early.
      */
     private void handleChooseCostTargets(Game game, Player controller) {
         for (Cost cost : getCosts()) {
@@ -791,54 +835,59 @@ public abstract class AbilityImpl implements Ability {
                 }
             }
         }
-        if (variableManaCost != null) {
-            if (!variableManaCost.isPaid()) { // should only happen for human players
-                int xValue;
-                if (!noMana || variableManaCost.getCostType().canUseAnnounceOnFreeCast()) {
-                    if (variableManaCost.wasAnnounced()) {
-                        // announce by rules
-                        xValue = variableManaCost.getAmount();
-                    } else {
-                        // announce by player
-                        xValue = controller.announceX(variableManaCost.getMinX(), variableManaCost.getMaxX(),
-                                "Announce the value for " + variableManaCost.getText(), game, this, true);
-                    }
-
-                    int amountMana = xValue * variableManaCost.getXInstancesCount();
-                    StringBuilder manaString = threadLocalBuilder.get();
-                    if (variableManaCost.getFilter() == null || variableManaCost.getFilter().isGeneric()) {
-                        manaString.append('{').append(amountMana).append('}');
-                    } else {
-                        String manaSymbol = null;
-                        if (variableManaCost.getFilter().isBlack()) {
-                            if (variableManaCost.getFilter().isRed()) {
-                                manaSymbol = "B/R";
-                            } else {
-                                manaSymbol = "B";
-                            }
-                        } else if (variableManaCost.getFilter().isRed()) {
-                            manaSymbol = "R";
-                        } else if (variableManaCost.getFilter().isBlue()) {
-                            manaSymbol = "U";
-                        } else if (variableManaCost.getFilter().isGreen()) {
-                            manaSymbol = "G";
-                        } else if (variableManaCost.getFilter().isWhite()) {
-                            manaSymbol = "W";
-                        }
-                        if (manaSymbol == null) {
-                            throw new UnsupportedOperationException("ManaFilter is not supported: " + this);
-                        }
-                        for (int i = 0; i < amountMana; i++) {
-                            manaString.append('{').append(manaSymbol).append('}');
-                        }
-                    }
-                    addManaCostsToPay(new ManaCostsImpl<>(manaString.toString()));
-                    getManaCostsToPay().setX(xValue, amountMana);
-                    setCostsTag("X", xValue);
-                }
-                variableManaCost.setPaid();
-            }
+        if (variableManaCost == null) {
+            return variableManaCost;
         }
+        if (variableManaCost.isPaid()) {
+            return variableManaCost;
+        } // should only happen for human players
+        int xValue;
+        if (!noMana || variableManaCost.getCostType().canUseAnnounceOnFreeCast()) {
+            if (variableManaCost.wasAnnounced()) {
+                // announce by rules
+                xValue = variableManaCost.getAmount();
+            } else {
+                // announce by player
+                xValue = controller.announceX(variableManaCost.getMinX(), variableManaCost.getMaxX(),
+                        "Announce the value for " + variableManaCost.getText(), game, this, true);
+            }
+
+            int amountMana = xValue * variableManaCost.getXInstancesCount();
+            StringBuilder manaString = threadLocalBuilder.get();
+            if (!(variableManaCost instanceof WaterbendXCost)) {
+                if (variableManaCost.getFilter() == null || variableManaCost.getFilter().isGeneric()) {
+                    manaString.append('{').append(amountMana).append('}');
+                } else {
+                    String manaSymbol;
+                    if (variableManaCost.getFilter().isBlack()) {
+                        if (variableManaCost.getFilter().isRed()) {
+                            manaSymbol = "B/R";
+                        } else {
+                            manaSymbol = "B";
+                        }
+                    } else if (variableManaCost.getFilter().isRed()) {
+                        manaSymbol = "R";
+                    } else if (variableManaCost.getFilter().isBlue()) {
+                        manaSymbol = "U";
+                    } else if (variableManaCost.getFilter().isGreen()) {
+                        manaSymbol = "G";
+                    } else if (variableManaCost.getFilter().isWhite()) {
+                        manaSymbol = "W";
+                    } else {
+                        throw new UnsupportedOperationException("ManaFilter is not supported: " + this);
+                    }
+                    for (int i = 0; i < amountMana; i++) {
+                        manaString.append('{').append(manaSymbol).append('}');
+                    }
+                }
+                addManaCostsToPay(new ManaCostsImpl<>(manaString.toString()));
+            } else {
+                addManaCostsToPay(new WaterbendCost(amountMana));
+            }
+            getManaCostsToPay().setX(xValue, amountMana);
+            setCostsTag("X", xValue);
+        }
+        variableManaCost.setPaid();
 
         return variableManaCost;
     }
@@ -970,10 +1019,11 @@ public abstract class AbilityImpl implements Ability {
     }
 
     @Override
-    public void addWatcher(Watcher watcher) {
+    public Ability addWatcher(Watcher watcher) {
         watcher.setSourceId(this.sourceId);
         watcher.setControllerId(this.controllerId);
         getWatchers().add(watcher);
+        return this;
     }
 
     @Override
@@ -1068,6 +1118,10 @@ public abstract class AbilityImpl implements Ability {
 
     @Override
     public void addCost(Cost cost) {
+        this.addCost(cost, -1);
+    }
+
+    public void addCost(Cost cost, int index) {
         if (cost == null) {
             return;
         }
@@ -1083,7 +1137,11 @@ public abstract class AbilityImpl implements Ability {
                 manaCosts.add((ManaCost) cost);
                 manaCostsToPay.add((ManaCost) cost);
             } else {
-                costs.add(cost);
+                if (index < 0) {
+                    costs.add(cost);
+                } else {
+                    costs.add(index, cost);
+                }
             }
         }
     }
@@ -1707,21 +1765,34 @@ public abstract class AbilityImpl implements Ability {
     }
 
     @Override
+    public Permanent getPermanentSourceAttachedToIfItStillExists(Game game) {
+        Permanent aura = getSourcePermanentIfItStillExists(game);
+        if (aura == null) {
+            return null;
+        }
+        Permanent enchanted = game.getPermanent(aura.getAttachedTo());
+        if (enchanted == null || enchanted.getZoneChangeCounter(game) != aura.getAttachedToZoneChangeCounter()) {
+            return null;
+        }
+        return enchanted;
+    }
+
+    @Override
     public void setSourceObjectZoneChangeCounter(int sourceObjectZoneChangeCounter) {
         this.sourceObjectZoneChangeCounter = sourceObjectZoneChangeCounter;
     }
 
     @Override
     public void initSourceObjectZoneChangeCounter(Game game, boolean force) {
-        if (!(this instanceof MageSingleton) && (force || sourceObjectZoneChangeCounter == 0 )) {
+        if (!(this instanceof MageSingleton) && (force || sourceObjectZoneChangeCounter == 0)) {
             setSourceObjectZoneChangeCounter(getCurrentSourceObjectZoneChangeCounter(game));
         }
     }
 
-    private int getCurrentSourceObjectZoneChangeCounter(Game game){
+    private int getCurrentSourceObjectZoneChangeCounter(Game game) {
         int zcc = game.getState().getZoneChangeCounter(getSourceId());
         Permanent p = game.getPermanentEntering(getSourceId());
-        if (p != null && !(p instanceof PermanentToken)){
+        if (p != null && !(p instanceof PermanentToken)) {
             // If the triggered ability triggered while the permanent is entering the battlefield
             // then add 1 zcc so that it triggers as if the permanent was already on the battlefield
             // So "Enters with counters" causes "Whenever counters are placed" to trigger with battlefield zcc

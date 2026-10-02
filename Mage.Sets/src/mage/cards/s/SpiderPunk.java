@@ -15,6 +15,7 @@ import mage.cards.CardImpl;
 import mage.cards.CardSetInfo;
 import mage.constants.*;
 import mage.counters.CounterType;
+import mage.filter.FilterPermanent;
 import mage.filter.common.FilterCreaturePermanent;
 import mage.game.Game;
 import mage.game.events.EntersTheBattlefieldEvent;
@@ -34,7 +35,7 @@ import java.util.UUID;
  */
 public final class SpiderPunk extends CardImpl {
 
-    static final FilterCreaturePermanent filter = new FilterCreaturePermanent(SubType.SPIDER, "Spiders you control");
+    static final FilterPermanent filter = new FilterPermanent(SubType.SPIDER, "Spiders you control");
 
     public SpiderPunk(UUID ownerId, CardSetInfo setInfo) {
         super(ownerId, setInfo, new CardType[]{CardType.CREATURE}, "{1}{R}");
@@ -125,7 +126,7 @@ class SpiderPunkRiotETBEffect extends ReplacementEffectImpl {
         return creature != null
                 && creature.getId() != source.getSourceId()
                 && creature.isControlledBy(source.getControllerId())
-                && creature.isCreature(game)
+                && SpiderPunk.filter.match(creature, source.getControllerId(), source, game)
                 && !(creature instanceof PermanentToken);
     }
 
@@ -140,7 +141,6 @@ class SpiderPunkRiotETBEffect extends ReplacementEffectImpl {
                 outcome, "Have " + creature.getLogName() + " enter the battlefield with a +1/+1 counter on it or with haste?",
                 null, "+1/+1 counter", "Haste", source, game
         )) {
-            game.informPlayers(player.getLogName() + " choose to put a +1/+1 counter on " + creature.getName());
             creature.addCounters(CounterType.P1P1.createInstance(), source.getControllerId(), source, game, event.getAppliedEffects());
         } else {
             ContinuousEffect effect = new GainAbilityTargetEffect(HasteAbility.getInstance(), Duration.Custom);

@@ -13,7 +13,7 @@ import mage.cards.Card;
 import mage.cards.CardImpl;
 import mage.cards.CardSetInfo;
 import mage.constants.*;
-import mage.filter.common.FilterCreatureCard;
+import mage.filter.StaticFilters;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
 import mage.game.permanent.PermanentCard;
@@ -41,7 +41,7 @@ public final class LazavDimirMastermind extends CardImpl {
         // Whenever a creature card is put into an opponent's graveyard from anywhere, you may have Lazav, Dimir Mastermind become a copy of that card except its name is Lazav, Dimir Mastermind, it's legendary in addition to its other types, and it has hexproof and this ability.
         this.addAbility(new PutCardIntoGraveFromAnywhereAllTriggeredAbility(
                 new LazavDimirMastermindEffect(), true,
-                new FilterCreatureCard("a creature card"),
+                StaticFilters.FILTER_CARD_CREATURE_A,
                 TargetController.OPPONENT, SetTargetPointer.CARD));
     }
 
@@ -86,9 +86,7 @@ class LazavDimirMastermindEffect extends OneShotEffect {
                 applier.apply(game, newBluePrint, source, lazavDimirMastermind.getId());
                 CopyEffect copyEffect = new CopyEffect(Duration.Custom, newBluePrint, lazavDimirMastermind.getId());
                 copyEffect.setApplier(applier);
-                Ability newAbility = source.copy();
-                copyEffect.init(newAbility, game);
-                game.addEffect(copyEffect, newAbility);
+                game.addEffect(copyEffect, source);
             }
             return true;
         }
@@ -102,7 +100,7 @@ class LazavDimirMastermindCopyApplier extends CopyApplier {
     public boolean apply(Game game, MageObject blueprint, Ability source, UUID copyToObjectId) {
         Ability ability = new PutCardIntoGraveFromAnywhereAllTriggeredAbility(
                 new LazavDimirMastermindEffect(), true,
-                new FilterCreatureCard("a creature card"),
+                StaticFilters.FILTER_CARD_CREATURE_A,
                 TargetController.OPPONENT, SetTargetPointer.CARD);
         blueprint.getAbilities().add(ability);
         blueprint.setName("Lazav, Dimir Mastermind");

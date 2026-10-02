@@ -108,6 +108,10 @@ public class ContinuousEffects implements Serializable {
         return requirementEffects;
     }
 
+    public List<ReplacementEffect> getReplacementEffects() {
+        return replacementEffects;
+    }
+
     public List<RestrictionEffect> getRestrictionEffects() {
         return restrictionEffects;
     }
@@ -1136,6 +1140,8 @@ public class ContinuousEffects implements Serializable {
                 effect.apply(Layer.PTChangingEffects_7, SubLayer.ModifyPT_7c, ability, game);
             }
         }
+
+        applyStatus.apply(Layer.PTChangingEffects_7, SubLayer.ModifyPT_7c, null, game);
 
         applyStatus.apply(Layer.PTChangingEffects_7, SubLayer.Counters_7d, null, game);
 

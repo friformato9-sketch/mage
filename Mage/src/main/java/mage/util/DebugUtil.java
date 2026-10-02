@@ -1,5 +1,11 @@
 package mage.util;
 
+import java.util.Enumeration;
+
+import org.apache.log4j.AppenderSkeleton;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Logger;
+
 /**
  * Devs only: enable or disable debug features
  * <p>
@@ -9,7 +15,8 @@ package mage.util;
  */
 public class DebugUtil {
 
-    public static boolean NETWORK_SHOW_CLIENT_CALLBACK_MESSAGES_LOG = false; // show all callback messages (server commands)
+    public static boolean NETWORK_SHOW_CLIENT_CALLBACK_MESSAGES_LOG = false; // show all callback messages (client side)
+    public static boolean NETWORK_SHOW_CLIENT_CALLBACK_RESPONSES = false; // show all callback responses (server side)
 
     // AI
     // game simulations runs in multiple threads, if you stop code to debug then it will be terminated by timeout
@@ -91,6 +98,23 @@ public class DebugUtil {
                 return TraceHelper.getMethodNameWithSource(3 + skipMethodsAmount);
             default:
                 throw new IllegalArgumentException("Unknown info type: " + infoType);
+        }
+    }
+
+    /**
+     * Print all log appenders and their levels, including logs file name
+     */
+    public static void printLogsInfo(Logger logger) {
+        logger.info("Logging:");
+        Enumeration<?> appenders = Logger.getRootLogger().getAllAppenders();
+        while (appenders.hasMoreElements()) {
+            AppenderSkeleton appender = (AppenderSkeleton) appenders.nextElement();
+            String info = " - log appender: " + appender.getName();
+            info += " | Level: " + (appender.getThreshold() != null ? appender.getThreshold() : logger.getEffectiveLevel());
+            if (appender instanceof FileAppender) {
+                info += " | File: " + ((FileAppender) appender).getFile();
+            }
+            logger.info(info);
         }
     }
 

@@ -2155,6 +2155,8 @@ public class PreferencesDialog extends javax.swing.JDialog {
             }
         });
 
+        txtBackgroundImagePath.setToolTipText("The selected image will be used as the background picture. Requires client restart to see changes.");
+
         btnBrowseBackgroundImage.setText("Browse...");
         btnBrowseBackgroundImage.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -2254,14 +2256,12 @@ public class PreferencesDialog extends javax.swing.JDialog {
 
         panelCardImages.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createEtchedBorder(), "Card images"));
 
-        cbUseDefaultImageFolder.setText("Use default location to save images");
+        cbUseDefaultImageFolder.setText("Use default location to save card images");
         cbUseDefaultImageFolder.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 cbUseDefaultImageFolderActionPerformed(evt);
             }
         });
-
-        txtImageFolderPath.setToolTipText("The selected image will be used as background picture. You have to restart MAGE to view a changed background image.");
 
         btnBrowseImageLocation.setText("Browse...");
         btnBrowseImageLocation.addActionListener(new java.awt.event.ActionListener() {
@@ -3265,7 +3265,9 @@ public class PreferencesDialog extends javax.swing.JDialog {
         int returnVal = fc_i.showOpenDialog(PreferencesDialog.this);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             File file = fc_i.getSelectedFile();
-            txtBackgroundImagePath.setText(file.getAbsolutePath());
+            if (file != null) {
+                txtBackgroundImagePath.setText(file.getAbsolutePath());
+            }
         }
     }
 
@@ -3273,7 +3275,9 @@ public class PreferencesDialog extends javax.swing.JDialog {
         int returnVal = fc_i.showOpenDialog(PreferencesDialog.this);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             File file = fc_i.getSelectedFile();
-            txtBattlefieldImagePath.setText(file.getAbsolutePath());
+            if (file != null) {
+                txtBattlefieldImagePath.setText(file.getAbsolutePath());
+            }
         }
     }
 
@@ -3281,7 +3285,9 @@ public class PreferencesDialog extends javax.swing.JDialog {
         int returnVal = fc.showOpenDialog(PreferencesDialog.this);
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             File file = fc.getSelectedFile();
-            txtBattlefieldIBGMPath.setText(file.getAbsolutePath());
+            if (file != null) {
+                txtBattlefieldIBGMPath.setText(file.getAbsolutePath());
+            }
         }
     }//GEN-LAST:event_btnBattlefieldBGMBrowseActionPerformed
 
@@ -3310,7 +3316,9 @@ public class PreferencesDialog extends javax.swing.JDialog {
 
         if (returnVal == JFileChooser.APPROVE_OPTION) {
             File file = fc.getSelectedFile();
-            txtImageFolderPath.setText(file.getAbsolutePath());
+            if (file != null) {
+                txtImageFolderPath.setText(file.getAbsolutePath());
+            }
         }
     }//GEN-LAST:event_btnBrowseImageLocationActionPerformed
 
@@ -3379,6 +3387,7 @@ public class PreferencesDialog extends javax.swing.JDialog {
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        // TODO: single form run is outdated, need to remove
         int param = 0;
         if (args.length > 0) {
             String param1 = args[0];

@@ -1,11 +1,11 @@
 package mage.game.events;
 
-import java.util.List;
-import java.util.UUID;
-
 import mage.abilities.Ability;
 import mage.constants.Zone;
 import mage.game.permanent.Permanent;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
  *
@@ -16,15 +16,11 @@ public class ZoneChangeEvent extends GameEvent {
     private Zone fromZone;
     private Zone toZone; // real toZone after apply some replacements effects
     private Zone originalToZone; // original toZone before any replacement effects
-    private Permanent target;
+    private Permanent target; // moving permanent (null on moving card)
     private Ability source; // link to source ability, can be null in rare situations
 
     public ZoneChangeEvent(Permanent target, Ability source, UUID playerId, Zone fromZone, Zone toZone) {
-        super(GameEvent.EventType.ZONE_CHANGE, target.getId(), source, playerId);
-        this.fromZone = fromZone;
-        this.setToZone(toZone);
-        this.target = target;
-        this.source = source;
+        this(target, source, playerId, fromZone, toZone, null);
     }
 
     public ZoneChangeEvent(Permanent target, Ability source, UUID playerId, Zone fromZone, Zone toZone, List<UUID> appliedEffects) {
@@ -39,10 +35,7 @@ public class ZoneChangeEvent extends GameEvent {
     }
 
     public ZoneChangeEvent(UUID targetId, Ability source, UUID playerId, Zone fromZone, Zone toZone) {
-        super(GameEvent.EventType.ZONE_CHANGE, targetId, source, playerId);
-        this.fromZone = fromZone;
-        this.setToZone(toZone);
-        this.source = source;
+        this(targetId, source, playerId, fromZone, toZone, null);
     }
 
     public ZoneChangeEvent(UUID targetId, Ability source, UUID playerId, Zone fromZone, Zone toZone, List<UUID> appliedEffects) {
@@ -53,14 +46,6 @@ public class ZoneChangeEvent extends GameEvent {
         if (appliedEffects != null) {
             this.appliedEffects = appliedEffects;
         }
-    }
-
-    public ZoneChangeEvent(Permanent target, UUID playerId, Zone fromZone, Zone toZone) {
-        this(target, null, playerId, fromZone, toZone);
-    }
-
-    public ZoneChangeEvent(UUID targetId, UUID playerId, Zone fromZone, Zone toZone) {
-        this(targetId, null, playerId, fromZone, toZone);
     }
 
     public Zone getFromZone() {
@@ -78,14 +63,27 @@ public class ZoneChangeEvent extends GameEvent {
         }
     }
 
+    /**
+     * Return moved permanent. Can be null on card moving or mutate parts.
+     */
     public Permanent getTarget() {
         return target;
+    }
+
+    /**
+     * Is a real permanent moving (not a card or mutate part), entering or leaving the battlefield. Warning, check fromZone/isDiesEvent yourself for leave only.
+     */
+    public boolean isPermanentMoved() {
+        return target != null;
     }
 
     public void setTarget(Permanent target) {
         this.target = target;
     }
 
+    /**
+     * Is dies event. Warning, cards also can trigger it without real permanent (example; mutated parts)
+     */
     public boolean isDiesEvent() {
         return (toZone == Zone.GRAVEYARD && fromZone == Zone.BATTLEFIELD);
     }

@@ -7,7 +7,7 @@ import org.apache.log4j.Logger;
 import org.jboss.util.threadpool.BasicThreadPool;
 
 public class CustomThreadPool extends BasicThreadPool {
-    private static final Logger logger = Logger.getLogger(SessionImpl.class);
+    private static final Logger logger = Logger.getLogger(CustomThreadPool.class);
 
     @Override
     public void setMaximumPoolSize(int size) {
@@ -16,7 +16,7 @@ public class CustomThreadPool extends BasicThreadPool {
          * just to fix this and the executor is private
          */
         try {
-            Field executorField = BasicThreadPool.class.getField("executor");
+            Field executorField = BasicThreadPool.class.getDeclaredField("executor");
             executorField.setAccessible(true);
             ThreadPoolExecutor executor = (ThreadPoolExecutor) executorField.get(this);
             synchronized (executor) {

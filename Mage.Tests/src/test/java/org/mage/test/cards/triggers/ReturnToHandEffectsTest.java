@@ -1,4 +1,3 @@
-
 package org.mage.test.cards.triggers;
 
 import mage.cards.Card;
@@ -213,14 +212,12 @@ public class ReturnToHandEffectsTest extends CardTestPlayerBase {
         waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
         castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Wind Zendikon", "Tangled Vale");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("1: check zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Vale", 2, 1, 1, 2));
+                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Vale", 2, 2, 2, 2));
         castSpell(1, PhaseStep.BEGIN_COMBAT, playerA, "Disfigure", "Tangled Vale");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("2: check zcc card", 1, PhaseStep.POSTCOMBAT_MAIN, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 2, 2, 4));
+                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 4, 4, 4));
 
         setStrictChooseMode(true);
         setStopAt(1, PhaseStep.END_TURN);
@@ -244,14 +241,12 @@ public class ReturnToHandEffectsTest extends CardTestPlayerBase {
         waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
         castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Wind Zendikon", "Riverglide Pathway");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("1: check zcc pre disfigure", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Riverglide Pathway", 2, 1, 2, 1));
+                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Riverglide Pathway", 2, 2, 2, 2));
         castSpell(1, PhaseStep.BEGIN_COMBAT, playerA, "Disfigure", "Riverglide Pathway");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("2: check zcc post disfigure", 1, PhaseStep.POSTCOMBAT_MAIN, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Riverglide Pathway", 2, 4, 2));
+                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Riverglide Pathway", 4, 4, 4));
 
         setStrictChooseMode(true);
         setStopAt(1, PhaseStep.END_TURN);
@@ -275,14 +270,12 @@ public class ReturnToHandEffectsTest extends CardTestPlayerBase {
         waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
         castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Wind Zendikon", "Lavaglide Pathway");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("1: check zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Lavaglide Pathway", 2, 1, 1, 2));
+                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Lavaglide Pathway", 2, 2, 2, 2));
         castSpell(1, PhaseStep.BEGIN_COMBAT, playerA, "Disfigure", "Lavaglide Pathway");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("2: check zcc card", 1, PhaseStep.POSTCOMBAT_MAIN, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Riverglide Pathway", 2, 2, 4));
+                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Riverglide Pathway", 4, 4, 4));
 
         setStrictChooseMode(true);
         setStopAt(1, PhaseStep.END_TURN);
@@ -335,14 +328,12 @@ public class ReturnToHandEffectsTest extends CardTestPlayerBase {
         waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
         castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Demonic Vigor", "Tangled Florahedron");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("1: check zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Florahedron", 3, 2, 3, 2));
+                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Florahedron", 3, 3, 3, 3));
         castSpell(1, PhaseStep.BEGIN_COMBAT, playerA, "Disfigure", "Tangled Florahedron");
 
-        // TODO: investigate why MDFC zcc moves separatedly.
         runCode("2: check zcc card", 1, PhaseStep.POSTCOMBAT_MAIN, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 3, 5, 3));
+                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 5, 5, 5));
 
         setStrictChooseMode(true);
         setStopAt(1, PhaseStep.END_TURN);
@@ -403,25 +394,25 @@ public class ReturnToHandEffectsTest extends CardTestPlayerBase {
         castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Tangled Florahedron");
         waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN);
         castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Demonic Vigor", "Tangled Florahedron");
-        // TODO: investigate why MDFC zcc moves separatedly.
+
         runCode("1: check zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Florahedron", 3, 2, 3, 2));
+                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Florahedron", 3, 3, 3, 3));
         castSpell(1, PhaseStep.BEGIN_COMBAT, playerA, "Disfigure", "Tangled Florahedron", true);
-        // TODO: investigate why MDFC zcc moves separatedly.
+
         runCode("2: check zcc card", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 3, 5, 3));
+                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 5, 5, 5));
 
         castSpell(1, PhaseStep.POSTCOMBAT_MAIN, playerA, "Tangled Florahedron");
         waitStackResolved(1, PhaseStep.POSTCOMBAT_MAIN);
         castSpell(1, PhaseStep.POSTCOMBAT_MAIN, playerA, "Demonic Vigor", "Tangled Florahedron", true);
-        // TODO: investigate why MDFC zcc moves separatedly.
+
         runCode("3: check zcc", 1, PhaseStep.POSTCOMBAT_MAIN, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Florahedron", 7, 4, 7, 4));
+                (String info, Player player, Game game) -> checkZCCMDFCPermanent(info, player, game, "Tangled Florahedron", 7, 7, 7, 7));
         waitStackResolved(1, PhaseStep.POSTCOMBAT_MAIN);
         castSpell(1, PhaseStep.POSTCOMBAT_MAIN, playerA, "Disfigure", "Tangled Florahedron", true);
-        // TODO: investigate why MDFC zcc moves separatedly.
+
         runCode("4: check zcc card", 1, PhaseStep.POSTCOMBAT_MAIN, playerA,
-                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 5, 9, 5));
+                (String info, Player player, Game game) -> checkZCCMDFCCardInHand(info, player, game, "Tangled Florahedron", 9, 9, 9));
 
         setStrictChooseMode(true);
         setStopAt(1, PhaseStep.END_TURN);
@@ -458,20 +449,77 @@ public class ReturnToHandEffectsTest extends CardTestPlayerBase {
         runCode("3: check zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
                 (String info, Player player, Game game) -> checkZCCNormalPermanent(info, player, game, "Carrion Feeder", 5, 5));
         castSpell(1, PhaseStep.BEGIN_COMBAT, playerA, "Coat with Venom", "Carrion Feeder", true);
-        runCode("4: check graveyard zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
-                (String info, Player player, Game game) -> checkZCCCardInGraveyard(info, player, game, "Carrion Feeder", 6));
+        runCode("4: check hand zcc", 1, PhaseStep.BEGIN_COMBAT, playerA,
+                (String info, Player player, Game game) -> checkZCCNormalCardInHand(info, player, game, "Carrion Feeder", 7));
 
         setStrictChooseMode(true);
         setStopAt(1, PhaseStep.END_TURN);
         execute();
-        // Vigor tries to return the Carrion Feeder card with zcc 4, so 6 doesn't return.
 
         assertGraveyardCount(playerA, "Disfigure", 1);
         assertGraveyardCount(playerA, "Demonic Vigor", 1);
         assertGraveyardCount(playerA, "Makeshift Mannequin", 1);
-        assertGraveyardCount(playerA, "Carrion Feeder", 1);
+        assertGraveyardCount(playerA, "Carrion Feeder", 0);
         assertPermanentCount(playerA, "Carrion Feeder", 0);
-        assertHandCount(playerA, "Carrion Feeder", 0);
+        assertHandCount(playerA, "Carrion Feeder", 1);
+    }
+
+    @Test
+    public void test_ReturnToHandTargetEffect_CanWorkWithCopies() {
+        // possible bugs:
+        // - remove original spell lead to also remove copied spell
+        // - can't remove copied spell from stack
+
+        addCard(Zone.HAND, playerA, "Lightning Bolt", 1); // {R}
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        //
+        // Choose one - Destroy target nonland permanent with converted mana cost 3 or less.
+        // Copy target instant or sorcery spell. You may choose new targets for the copy.
+        // Return target card from your graveyard to your hand.
+        addCard(Zone.HAND, playerA, "Ferocity of the Underworld", 3); // {B}{R}{G}
+        addCard(Zone.BATTLEFIELD, playerA, "Mountain", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Swamp", 1);
+        addCard(Zone.BATTLEFIELD, playerA, "Forest", 1);
+        //
+        // Return target spell to its owner's hand.
+        // Draw a card.
+        addCard(Zone.HAND, playerA, "Reprieve", 3); // {1}{W}
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 3 * 2);
+
+        // cast bolt and copy it
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Lightning Bolt", playerB);
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Ferocity of the Underworld");
+        setModeChoice(playerA, "2"); // copy target instant or sorcery spell
+        addTarget(playerA, "Cast Lightning Bolt");
+        setChoice(playerA, false); // do not choose new targets for the copy
+        checkStackSize("original and copier", 1, PhaseStep.PRECOMBAT_MAIN, playerA, 2);
+        //
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN, 1);
+        checkStackObject("must have x2 bolts", 1, PhaseStep.PRECOMBAT_MAIN, playerA, "Cast Lightning Bolt", 2);
+
+        // remove original spell
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Reprieve", "Cast Lightning Bolt[no copy]");
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN, 1);
+        checkStackObject("must have x1 bolt (original only)", 1, PhaseStep.PRECOMBAT_MAIN, playerA, "Cast Lightning Bolt", 1);
+        runCode("check copy", 1, PhaseStep.PRECOMBAT_MAIN, playerA, (info, player, game) -> {
+            int count = (int) game.getStack().stream()
+                    .filter(stackObject -> stackObject.getName().equals("Lightning Bolt"))
+                    .filter(stackObject -> stackObject.isCopy())
+                    .count();
+            Assert.assertEquals(info + " — must have x1 bolt (copy only)", 1, count);
+        });
+
+        // remove copied spell
+        castSpell(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Reprieve", "Cast Lightning Bolt");
+        waitStackResolved(1, PhaseStep.PRECOMBAT_MAIN, 1);
+        checkStackSize("must have x0 bolts", 1, PhaseStep.PRECOMBAT_MAIN, playerA, 0);
+
+        setStrictChooseMode(true);
+        setStopAt(1, PhaseStep.END_TURN);
+        execute();
+
+        assertLife(playerA, 20);
+        assertLife(playerB, 20);
     }
 
 }

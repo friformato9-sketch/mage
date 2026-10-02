@@ -2,6 +2,7 @@ package mage.collectors;
 
 import mage.game.Game;
 import mage.game.Table;
+import mage.game.stack.StackObject;
 import mage.players.Player;
 
 import java.util.UUID;
@@ -12,6 +13,7 @@ import java.util.UUID;
  * Supported features:
  * - [x] collect and print game logs in server output, including unit tests
  * - [x] collect and save full games history and decks
+ * - [x] TODO: collect and save errors with game state, history and shared link
  * - [ ] TODO: collect and print performance metrics like ApplyEffects calc time or inform players time (pings)
  * - [ ] TODO: collect and send metrics to third party tools like prometheus + grafana
  * - [x] tests: print used selections (choices, targets, modes, skips) TODO: add yes/no, replacement effect, coins, other choices
@@ -53,7 +55,18 @@ public interface DataCollector {
 
     void onGameLog(Game game, String message);
 
+    void onGameError(Game game, Throwable e);
+
+    /**
+     * Stops on real game end (on normal end, on concede, on critical error)
+     * Warning, real result will be calculated after game end, see onGameResult
+     */
     void onGameEnd(Game game);
+
+    /**
+     * Stops on game result ready, e.g. on winner selected
+     */
+    void onGameEndResult(Game game);
 
     /**
      * @param userName can be null for system messages
@@ -85,7 +98,12 @@ public interface DataCollector {
     void onTestsStackPush(Game game);
 
     /**
-     * Tests only: on stack object resolve (calls before starting resolve)
+     * Tests only: on stack object resolve start (calls before starting resolve)
      */
-    void onTestsStackResolve(Game game);
+    void onTestsStackResolveStart(Game game, StackObject top);
+
+    /**
+     * Tests only: on stack object resolve end (calls after resolve end - on good and bad resolve, e.g. after counter/fizzle the spell)
+     */
+    void onTestsStackResolveEnd(Game game, StackObject top, boolean applied);
 }

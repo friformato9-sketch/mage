@@ -8,8 +8,6 @@ import mage.abilities.keyword.ConvokeAbility;
 import mage.cards.CardSetInfo;
 import mage.cards.RoomCard;
 import mage.constants.CardType;
-import mage.constants.SpellAbilityType;
-import mage.constants.SubType;
 import mage.filter.StaticFilters;
 import mage.filter.common.FilterNonlandCard;
 import mage.filter.predicate.Predicates;
@@ -30,16 +28,15 @@ public final class DazzlingTheaterPropRoom extends RoomCard {
     }
 
     public DazzlingTheaterPropRoom(UUID ownerId, CardSetInfo setInfo) {
-        super(ownerId, setInfo, new CardType[]{CardType.ENCHANTMENT}, "{3}{W}", "{2}{W}", SpellAbilityType.SPLIT);
-        this.subtype.add(SubType.ROOM);
+        super(ownerId, setInfo, "{3}{W}", "{2}{W}");
 
         // Dazzling Theater: Creature spells you cast have convoke.
         Ability left = new SimpleStaticAbility(new GainAbilityControlledSpellsEffect(new ConvokeAbility(), filter));
+        this.getLeftHalfCard().addAbility(left);
 
         // Prop Room: Untap each creature you control during each other player's untap step.
         Ability right = new SimpleStaticAbility(new UntapAllDuringEachOtherPlayersUntapStepEffect(StaticFilters.FILTER_CONTROLLED_CREATURES));
-
-        this.addRoomAbilities(left, right);
+        this.getRightHalfCard().addAbility(right);
     }
 
     private DazzlingTheaterPropRoom(final DazzlingTheaterPropRoom card) {

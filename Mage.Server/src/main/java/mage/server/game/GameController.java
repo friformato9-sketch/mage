@@ -5,6 +5,7 @@ import mage.abilities.Ability;
 import mage.cards.Card;
 import mage.cards.Cards;
 import mage.choices.Choice;
+import mage.collectors.DataCollectorServices;
 import mage.constants.ManaType;
 import mage.constants.PlayerAction;
 import mage.game.Game;
@@ -34,6 +35,7 @@ import mage.view.ChatMessage.MessageType;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.*;
@@ -50,6 +52,9 @@ public class GameController implements GameCallback {
 
     private static final int GAME_TIMEOUTS_CHECK_JOINING_STATUS_EVERY_SECS = 10; // checks and inform players about joining status
     private static final int GAME_TIMEOUTS_CANCEL_PLAYER_GAME_JOINING_AFTER_INACTIVE_SECS = 2 * 60; // leave player from game if it don't join and inactive on server
+
+    // use fake id for shared logic between player and watcher sessions
+    private static final UUID WATCHER_SESSION_FAKE_PLAYER_ID = UUID.nameUUIDFromBytes("fakeWatcher".getBytes(StandardCharsets.UTF_8));
 
     private final ExecutorService gameExecutor;
     private static final Logger logger = Logger.getLogger(GameController.class);
@@ -78,6 +83,8 @@ public class GameController implements GameCallback {
     private Future<?> gameFuture;
     private boolean useResponseIdleTimeout = true; // control currently active player (if no response for 600 seconds then concede him)
     private final GameOptions gameOptions;
+
+    private ConcurrentHashMap<UUID, GameView> defaultGameViews = new ConcurrentHashMap<>(); // default game views on first connect
 
     private UUID userRequestingRollback;
     private int turnsToRollback;
@@ -131,7 +138,7 @@ public class GameController implements GameCallback {
                                 logger.trace(game.getId() + " " + event.getMessage());
                                 break;
                             case ERROR:
-                                error(event.getMessage(), event.getException());
+                                error(event.getMessage(), event.getException(), event.getGame());
                                 break;
                             case END_GAME_INFO:
                                 endGameInfo();
@@ -311,6 +318,7 @@ public class GameController implements GameCallback {
         String joinType;
         if (gameSession == null) {
             gameSession = new GameSessionPlayer(managerFactory, game, userId, playerId);
+            gameSession.startWithGameView(null); // it's null here, real default view generates on game start
             final Lock w = gameSessionsLock.writeLock();
             w.lock();
             try {
@@ -335,9 +343,32 @@ public class GameController implements GameCallback {
                 player.updateRange(game);
             }
 
-            // send first info to users
+            // init game views in current thread before real game thread strated -- it's safe place here
+            // players - per player view (cause human controlled player has special GUI like hints, cheat, etc)
+            // watchers - shared view
+            this.defaultGameViews.clear();
+            this.defaultGameViews.put(
+                WATCHER_SESSION_FAKE_PLAYER_ID, 
+                GameSessionWatcher.generateDefaultGameViewForWatcher(game)
+            );
             for (GameSessionPlayer gameSessionPlayer : getGameSessions()) {
-                gameSessionPlayer.init();
+                this.defaultGameViews.put(
+                    gameSessionPlayer.getPlayerId(), 
+                    GameSessionPlayer.generateDefaultGameViewForPlayer(game, gameSessionPlayer.getPlayerId())
+                );
+            }
+
+            // send first info to users
+            // order matters: GAME_INIT must be in a session queue BEFORE a game thread sends its
+            // first dialog (starting player choice), otherwise a client gets a dialog for a game it
+            // has not opened yet.
+            // so fill callbacks queue and send it
+            List<GameSessionPlayer> startSessions = getGameSessions();
+            for (GameSessionPlayer gameSessionPlayer : startSessions) {
+                gameSessionPlayer.init(false);
+            }
+            for (GameSessionPlayer gameSessionPlayer : startSessions) {
+                gameSessionPlayer.flushCallbacks();
             }
 
             // real game start
@@ -469,6 +500,7 @@ public class GameController implements GameCallback {
         }
         managerFactory.userManager().getUser(userId).ifPresent(user -> {
             GameSessionWatcher gameWatcher = new GameSessionWatcher(managerFactory.userManager(), userId, game, false);
+            gameWatcher.startWithGameView(this.defaultGameViews.get(WATCHER_SESSION_FAKE_PLAYER_ID));
             final Lock w = gameWatchersLock.writeLock();
             w.lock();
             try {
@@ -764,10 +796,18 @@ public class GameController implements GameCallback {
     }
 
     public void endGame(final String message) throws MageException {
+        // real game end, all data ready here
+        DataCollectorServices.getInstance().onGameEndResult(game);
+
         // send end game message/dialog
         for (final GameSessionPlayer gameSession : getGameSessions()) {
-            gameSession.gameOver(message);
             gameSession.removeGame();
+            try {
+                // it's send gameview so make sure it's safe to continue
+                gameSession.gameOver(message);
+            } catch (Throwable e) {
+                logger.error("Can't send game over to player, user " + gameSession.userId + ", game " + game.getId() + ": " + e, e);
+            }
         }
         for (final GameSessionWatcher gameWatcher : getGameSessionWatchers()) {
             gameWatcher.gameOver(message);
@@ -832,7 +872,12 @@ public class GameController implements GameCallback {
         if (table != null) {
             if (table.getMatch() != null) {
                 for (final GameSessionPlayer gameSession : getGameSessions()) {
-                    gameSession.endGameInfo(table);
+                    try {
+                        // it's send part of gameview so make sure it's safe to continue
+                        gameSession.endGameInfo(table);
+                    } catch (Throwable e) {
+                        logger.error("Can't send end game info to player, user " + gameSession.userId + ", game " + game.getId() + ": " + e, e);
+                    }
                 }
                 // TODO: inform watchers about game end and who won
             }
@@ -907,59 +952,66 @@ public class GameController implements GameCallback {
     }
 
     private void informOthers(UUID waitingPlayerId) {
+        // send game status to non-active players and watchers, can be async
         StringBuilder message = new StringBuilder();
         if (game.getStep() != null) {
             message.append(game.getTurnStepType().toString()).append(" - ");
         }
         message.append("Waiting for ").append(game.getPlayer(waitingPlayerId).getLogName());
+        String sendMessage = message.toString();
+
+        // update cached game view before send
+        List<GameSessionWatcher> destPlayers = new ArrayList<>();
         for (final Entry<UUID, GameSessionPlayer> entry : getGameSessionsMap().entrySet()) {
             if (!entry.getKey().equals(waitingPlayerId)) {
-                entry.getValue().inform(message.toString());
+                entry.getValue().getGameView();
+                destPlayers.add(entry.getValue());
             }
         }
         for (final GameSessionWatcher watcher : getGameSessionWatchers()) {
-            watcher.inform(message.toString());
+            watcher.getGameView();
+            destPlayers.add(watcher);
         }
-    }
 
-    private void informOthers(List<UUID> players) {
-        // first player is always original controller
-        Player controller = null;
-        if (players != null && !players.isEmpty()) {
-            controller = game.getPlayer(players.get(0));
-        }
-        if (controller == null || game.getStep() == null || game.getTurnStepType() == null) {
-            return;
-        }
-        final String message = new StringBuilder(game.getTurnStepType().toString()).append(" - Waiting for ").append(controller.getName()).toString();
-        for (final Entry<UUID, GameSessionPlayer> entry : getGameSessionsMap().entrySet()) {
-            boolean skip = players.stream().anyMatch(playerId -> entry.getKey().equals(playerId));
-            if (!skip) {
-                entry.getValue().inform(message);
-            }
-        }
-        for (final GameSessionWatcher watcher : getGameSessionWatchers()) {
-            watcher.inform(message);
-        }
+        // warning, it's game update so make sure it's actual for current time, not on sending time
+        // so prepare data now, send it later
+        // test lab's s10 scenario with enabled low CPU simulation
+        destPlayers.forEach(destPlayer -> destPlayer.inform(sendMessage, false));
+        destPlayers.forEach(destPlayer -> destPlayer.flushCallbacks());
     }
 
     private void informPersonal(UUID playerId, final String message) throws MageException {
         perform(playerId, playerId1 -> getGameSession(playerId1).informPersonal(message), false);
     }
 
-    private void error(String message, Exception ex) {
+    private void error(String message, Throwable ex, Game game) {
         StringBuilder sb = new StringBuilder();
         sb.append(message);
         sb.append("\n");
         sb.append("\n");
         sb.append(ex);
         sb.append("\nServer version: ").append(Main.getVersion().toString());
+        if (game != null) {
+            sb.append("\n");
+            try {
+                sb.append("\nGame state:\n").append(game.toString());
+            } catch (Exception e) {
+                sb.append("\nGame state: can't get it due error");
+            }
+        }
+        sb.append("\n");
         sb.append("\nStack trace:");
+        sb.append("\n```");
         sb.append("\n");
         for (StackTraceElement e : ex.getStackTrace()) {
             sb.append(e.toString()).append("\n");
         }
+        sb.append("```");
+        sb.append("\n");
         String mes = sb.toString();
+
+        // send to data collectors
+        DataCollectorServices.getInstance().onGameError(game, ex);
 
         // send error for each player
         for (final Entry<UUID, GameSessionPlayer> entry : getGameSessionsMap().entrySet()) {
@@ -976,7 +1028,26 @@ public class GameController implements GameCallback {
         try {
             endGame(result);
         } catch (MageException ex) {
+            // never called in production logs
             logger.fatal("Game Result error", ex);
+        }
+    }
+
+    @Override
+    public void endGameWithError(Throwable error) {
+        try {
+            // must inform users about critical error and finish a game, a match decides by itself what's next
+
+            // send error
+            error("Game stopped due server error and can't be continued", error, game);
+
+            // finish game with a technical winner (never a draw) and all active dialogs
+            game.endWithTechnicalWinner("game thread error: " + error);
+
+            // send end game dialog and clean, same flow as a normal game end (match stats, next game or table close)
+            endGame(game.getWinner());
+        } catch (Throwable e) {
+            logger.fatal("Can't close a game after an error: " + game.getId(), e);
         }
     }
 

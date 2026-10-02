@@ -62,6 +62,10 @@ public class MageBook extends JComponent {
         super();
         this.bigCard = bigCard;
         this.setsToDisplay = ConstructedFormats.getSetsByFormat(ConstructedFormats.getDefault());
+        if (this.setsToDisplay == null || this.setsToDisplay.isEmpty()) {
+            // display all
+            this.setsToDisplay = ExpansionRepository.instance.getSetCodes();
+        }
         boolean selected3x3 = MageFrame.getPreferences().get(CollectionViewerPanel.LAYOYT_CONFIG_KEY, MageBook.LAYOUT_3X3).equals(MageBook.LAYOUT_3X3);
         this.conf = selected3x3 ? new _3x3Configuration() : new _4x4Configuration();
         initComponents();
@@ -266,6 +270,7 @@ public class MageBook extends JComponent {
                 Object newEmblem = cons.newInstance();
                 if (newEmblem instanceof Emblem) {
                     ((Emblem) newEmblem).setExpansionSetCode(currentSet);
+                    ((Emblem) newEmblem).setImageNumber(token.getImageNumber());
                     res.add(newEmblem);
                 }
             } catch (Exception e) {
@@ -285,6 +290,7 @@ public class MageBook extends JComponent {
                 Object newPlane = cons.newInstance();
                 if (newPlane instanceof Plane) {
                     ((Plane) newPlane).setExpansionSetCode(currentSet);
+                    ((Plane) newPlane).setImageNumber(token.getImageNumber());
                     res.add(newPlane);
                 }
             } catch (Exception e) {
@@ -304,6 +310,7 @@ public class MageBook extends JComponent {
                 Object newDungeon = cons.newInstance();
                 if (newDungeon instanceof Dungeon) {
                     ((Dungeon) newDungeon).setExpansionSetCode(currentSet);
+                    ((Dungeon) newDungeon).setImageNumber(token.getImageNumber());
                     res.add(newDungeon);
                 }
             } catch (Exception e) {
@@ -489,11 +496,11 @@ public class MageBook extends JComponent {
         }
 
         // cards stats
-        List<Integer> haveNumbers = set
+        Set<Integer> haveNumbers = set
                 .getSetCardInfo()
                 .stream()
                 .map(ExpansionSet.SetCardInfo::getCardNumberAsInt)
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
 
         int startNumber = haveNumbers
                 .stream()
@@ -544,7 +551,7 @@ public class MageBook extends JComponent {
 
     public void updateDispayedSets(String format) {
         this.setsToDisplay = ConstructedFormats.getSetsByFormat(format);
-        if (this.setsToDisplay.isEmpty()) {
+        if (this.setsToDisplay == null || this.setsToDisplay.isEmpty()) {
             // display all
             this.setsToDisplay = ExpansionRepository.instance.getSetCodes();
         }
@@ -554,6 +561,9 @@ public class MageBook extends JComponent {
 
     public void next() {
         synchronized (this) {
+            if (tabs.isEmpty()) {
+                return;
+            }
             selectedTab++;
             if (selectedTab >= tabs.size()) {
                 selectedTab = 0;

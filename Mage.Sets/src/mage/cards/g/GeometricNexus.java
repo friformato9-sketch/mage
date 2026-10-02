@@ -33,14 +33,13 @@ public final class GeometricNexus extends CardImpl {
         this.addAbility(new SpellCastAllTriggeredAbility(
                 new AddCountersSourceEffect(
                         CounterType.CHARGE.createInstance(0),
-                        GeometricNexusMVValue.instance, false
-                ).setText("put a number of charge counters on {this} equal to that spell's mana value"),
+                        GeometricNexusMVValue.instance).setText("put a number of charge counters on {this} equal to that spell's mana value"),
                 StaticFilters.FILTER_SPELL_AN_INSTANT_OR_SORCERY, false
         ));
 
         // {6}, {T}, Remove all charge counters from Geometric Nexus: Create a 0/0 green and blue Fractal creature token. Put X +1/+1 counters on it, where X is the number of charge counters removed this way.
         Ability ability = new SimpleActivatedAbility(FractalToken.getEffect(
-                GeometricNexusRemovedCounterValue.instance, "Put X +1/+1 counters on it, " +
+                GeometricNexusRemovedCounterValue.instance, ". Put X +1/+1 counters on it, " +
                         "where X is the number of charge counters removed this way"
         ), new GenericManaCost(6));
         ability.addCost(new TapSourceCost());

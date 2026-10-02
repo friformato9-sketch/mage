@@ -12,9 +12,7 @@ import mage.abilities.hint.ConditionHint;
 import mage.abilities.triggers.BeginningOfEndStepTriggeredAbility;
 import mage.cards.CardSetInfo;
 import mage.cards.RoomCard;
-import mage.constants.CardType;
 import mage.constants.Outcome;
-import mage.constants.SpellAbilityType;
 import mage.constants.SubType;
 import mage.filter.common.FilterControlledPermanent;
 import mage.game.Game;
@@ -35,8 +33,7 @@ public final class UnholyAnnexRitualChamber extends RoomCard {
     }
 
     public UnholyAnnexRitualChamber(UUID ownerId, CardSetInfo setInfo) {
-        super(ownerId, setInfo, new CardType[]{CardType.ENCHANTMENT}, "{2}{B}", "{3}{B}{B}", SpellAbilityType.SPLIT);
-        this.subtype.add(SubType.ROOM);
+        super(ownerId, setInfo, "{2}{B}", "{3}{B}{B}");
 
         // Unholy Annex: At the beginning of your end step, draw a card. If you control a Demon, each opponent loses 2 life and you gain 2 life. Otherwise, you lose 2 life.
         Ability left = new BeginningOfEndStepTriggeredAbility(new DrawCardSourceControllerEffect(1));
@@ -45,11 +42,11 @@ public final class UnholyAnnexRitualChamber extends RoomCard {
                 new PermanentsOnTheBattlefieldCondition(filter), "If you control a Demon, each opponent loses 2 life and you gain 2 life. Otherwise, you lose 2 life"
         ));
         left.addHint(new ConditionHint(new PermanentsOnTheBattlefieldCondition(filter), "You control a Demon"));
+        this.getLeftHalfCard().addAbility(left);
 
         // Ritual Chamber: When you unlock this door, create a 6/6 black Demon creature token with flying.
         Ability right = new UnlockThisDoorTriggeredAbility(new CreateTokenEffect(new Demon66Token()), false, false);
-
-        this.addRoomAbilities(left, right);
+        this.getRightHalfCard().addAbility(right);
     }
 
     private UnholyAnnexRitualChamber(final UnholyAnnexRitualChamber card) {

@@ -170,7 +170,6 @@ public final class JumpstartHistoricHorizons extends ExpansionSet {
         cards.add(new SetCardInfo("Haunted Dead", 336, Rarity.UNCOMMON, mage.cards.h.HauntedDead.class));
         cards.add(new SetCardInfo("Healer's Flock", 91, Rarity.UNCOMMON, mage.cards.h.HealersFlock.class));
         cards.add(new SetCardInfo("Heir of Falkenrath", 338, Rarity.UNCOMMON, mage.cards.h.HeirOfFalkenrath.class));
-        cards.add(new SetCardInfo("Heir to the Night", 338, Rarity.UNCOMMON, mage.cards.h.HeirToTheNight.class));
         cards.add(new SetCardInfo("Hell Mongrel", 339, Rarity.COMMON, mage.cards.h.HellMongrel.class));
         cards.add(new SetCardInfo("Herd Baloth", 584, Rarity.UNCOMMON, mage.cards.h.HerdBaloth.class));
         cards.add(new SetCardInfo("Hive Stirrings", 94, Rarity.COMMON, mage.cards.h.HiveStirrings.class));
@@ -249,6 +248,7 @@ public final class JumpstartHistoricHorizons extends ExpansionSet {
         cards.add(new SetCardInfo("Phantom Ninja", 230, Rarity.COMMON, mage.cards.p.PhantomNinja.class));
         cards.add(new SetCardInfo("Ponder", 782, Rarity.COMMON, mage.cards.p.Ponder.class));
         cards.add(new SetCardInfo("Pondering Mage", 231, Rarity.COMMON, mage.cards.p.PonderingMage.class));
+        cards.add(new SetCardInfo("Pool of Vigorous Growth", 28, Rarity.RARE, mage.cards.p.PoolOfVigorousGrowth.class));
         cards.add(new SetCardInfo("Predatory Sliver", 619, Rarity.COMMON, mage.cards.p.PredatorySliver.class));
         cards.add(new SetCardInfo("Prey's Vengeance", 620, Rarity.COMMON, mage.cards.p.PreysVengeance.class));
         cards.add(new SetCardInfo("Priest of Fell Rites", 707, Rarity.RARE, mage.cards.p.PriestOfFellRites.class));
@@ -378,7 +378,6 @@ public final class JumpstartHistoricHorizons extends ExpansionSet {
         cards.add(new SetCardInfo("Warteye Witch", 404, Rarity.COMMON, mage.cards.w.WarteyeWitch.class));
         cards.add(new SetCardInfo("Wavesifter", 726, Rarity.COMMON, mage.cards.w.Wavesifter.class));
         cards.add(new SetCardInfo("Webweaver Changeling", 666, Rarity.UNCOMMON, mage.cards.w.WebweaverChangeling.class));
-        cards.add(new SetCardInfo("Westvale Cult Leader", 90, Rarity.RARE, mage.cards.w.WestvaleCultLeader.class));
         cards.add(new SetCardInfo("Windcaller Aven", 275, Rarity.COMMON, mage.cards.w.WindcallerAven.class));
         cards.add(new SetCardInfo("Winding Way", 670, Rarity.COMMON, mage.cards.w.WindingWay.class));
         cards.add(new SetCardInfo("Winged Shepherd", 158, Rarity.COMMON, mage.cards.w.WingedShepherd.class));

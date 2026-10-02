@@ -11,12 +11,17 @@ public enum SpellAbilityType {
     SPLIT_FUSED("Split SpellAbility"),
     SPLIT_LEFT("LeftSplit SpellAbility"),
     SPLIT_RIGHT("RightSplit SpellAbility"),
+    TRANSFORMED("Transformed SpellAbility"),
+    TRANSFORMED_LEFT("TransformFront SpellAbility"),
+    TRANSFORMED_RIGHT("TransformBack SpellAbility"),
     MODAL("Modal SpellAbility"), // used for modal double faces cards
     MODAL_LEFT("LeftModal SpellAbility"),
     MODAL_RIGHT("RightModal SpellAbility"),
     SPLICE("Spliced SpellAbility"),
     ADVENTURE_SPELL("Adventure SpellAbility"),
-    OMEN_SPELL("Omen SpellAbility");
+    OMEN_SPELL("Omen SpellAbility"),
+    PREPARE_SPELL("Prepare SpellAbility");
+    // If you're adding a new SpellAbilityType, make sure to add handling (can it be used from the Command Zone) in Commander.java
 
     private final String text;
 

@@ -1,0 +1,48 @@
+package mage.abilities.effects.common;
+
+import mage.abilities.Ability;
+import mage.abilities.effects.OneShotEffect;
+import mage.constants.Outcome;
+import mage.game.Game;
+import mage.game.permanent.Permanent;
+
+/**
+ * @author TheElk801
+ */
+public class BecomePreparedSourceEffect extends OneShotEffect {
+
+    private static final String REMINDER_TEXT
+            = "<i>(While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)</i>";
+
+    public static String getReminder() {
+        return REMINDER_TEXT;
+    }
+
+    public BecomePreparedSourceEffect() {
+        this(false);
+    }
+
+    public BecomePreparedSourceEffect(boolean itBecomes) {
+        super(Outcome.Benefit);
+        staticText = (itBecomes ? "it" : "{this}") + " becomes prepared. " + getReminder();
+    }
+
+    private BecomePreparedSourceEffect(final BecomePreparedSourceEffect effect) {
+        super(effect);
+    }
+
+    @Override
+    public BecomePreparedSourceEffect copy() {
+        return new BecomePreparedSourceEffect(this);
+    }
+
+    @Override
+    public boolean apply(Game game, Ability source) {
+        Permanent permanent = source.getSourcePermanentIfItStillExists(game);
+        if (permanent == null) {
+            return false;
+        }
+        permanent.setPrepared(true, game);
+        return true;
+    }
+}

@@ -1,27 +1,16 @@
 package mage.cards;
 
-import java.util.UUID;
-
 import mage.abilities.Abilities;
 import mage.abilities.Ability;
 import mage.abilities.common.EntersBattlefieldAbility;
-import mage.abilities.common.RoomUnlockAbility;
-import mage.abilities.common.SimpleStaticAbility;
-import mage.abilities.common.UnlockThisDoorTriggeredAbility;
-import mage.abilities.condition.common.RoomHalfLockedCondition;
-import mage.abilities.costs.mana.ManaCosts;
-import mage.abilities.decorator.ConditionalContinuousEffect;
+import mage.abilities.common.RoomAbility;
 import mage.abilities.effects.OneShotEffect;
 import mage.abilities.effects.common.RoomCharacteristicsEffect;
-import mage.constants.CardType;
-import mage.constants.Duration;
-import mage.constants.Outcome;
-import mage.constants.SpellAbilityType;
-import mage.constants.Zone;
+import mage.constants.*;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
-import mage.game.permanent.PermanentToken;
-import mage.abilities.effects.common.continuous.LoseAbilitySourceEffect;
+
+import java.util.UUID;
 
 /**
  * @author oscscull
@@ -29,20 +18,25 @@ import mage.abilities.effects.common.continuous.LoseAbilitySourceEffect;
 public abstract class RoomCard extends SplitCard {
     private SpellAbilityType lastCastHalf = null;
 
-    protected RoomCard(UUID ownerId, CardSetInfo setInfo, CardType[] types, String costsLeft,
-            String costsRight, SpellAbilityType spellAbilityType) {
-        super(ownerId, setInfo, costsLeft, costsRight, spellAbilityType, types);
+    protected RoomCard(UUID ownerId, CardSetInfo setInfo, String costsLeft, String costsRight) {
+        super(ownerId, setInfo, costsLeft, costsRight, SpellAbilityType.SPLIT, new CardType[]{CardType.ENCHANTMENT});
+        this.addSubType(SubType.ROOM);
 
         String[] names = setInfo.getName().split(" // ");
 
         leftHalfCard = new RoomCardHalfImpl(
-                this.getOwnerId(), new CardSetInfo(names[0], setInfo.getExpansionSetCode(), setInfo.getCardNumber(),
-                        setInfo.getRarity(), setInfo.getGraphicInfo()),
-                types, costsLeft, this, SpellAbilityType.SPLIT_LEFT);
+                new CardSetInfo(names[0], setInfo), costsLeft, this, SpellAbilityType.SPLIT_LEFT
+        );
         rightHalfCard = new RoomCardHalfImpl(
-                this.getOwnerId(), new CardSetInfo(names[1], setInfo.getExpansionSetCode(), setInfo.getCardNumber(),
-                        setInfo.getRarity(), setInfo.getGraphicInfo()),
-                types, costsRight, this, SpellAbilityType.SPLIT_RIGHT);
+                new CardSetInfo(names[1], setInfo), costsRight, this, SpellAbilityType.SPLIT_RIGHT
+        );
+
+        // Add the one-shot effect to unlock a door on cast -> ETB
+        Ability entersAbility = new EntersBattlefieldAbility(new RoomEnterUnlockEffect());
+        entersAbility.setRuleVisible(false);
+        this.addAbility(entersAbility);
+
+        this.addAbility(new RoomAbility());
     }
 
     protected RoomCard(RoomCard card) {
@@ -56,56 +50,6 @@ public abstract class RoomCard extends SplitCard {
 
     public void setLastCastHalf(SpellAbilityType lastCastHalf) {
         this.lastCastHalf = lastCastHalf;
-    }
-
-    protected void addRoomAbilities(Ability leftAbility, Ability rightAbility) {
-        getLeftHalfCard().addAbility(leftAbility);
-        getRightHalfCard().addAbility(rightAbility);
-        this.addAbility(leftAbility.copy());
-        this.addAbility(rightAbility.copy());
-
-        // Add the one-shot effect to unlock a door on cast -> ETB
-        Ability entersAbility = new EntersBattlefieldAbility(new RoomEnterUnlockEffect());
-        entersAbility.setRuleVisible(false);
-        this.addAbility(entersAbility);
-
-        // Remove locked door abilities - keeping unlock triggers (or they won't trigger
-        // when unlocked)
-        if (leftAbility != null && !(leftAbility instanceof UnlockThisDoorTriggeredAbility)) {
-            Ability ability = new SimpleStaticAbility(Zone.BATTLEFIELD, new ConditionalContinuousEffect(
-                    new LoseAbilitySourceEffect(leftAbility, Duration.WhileOnBattlefield),
-                    RoomHalfLockedCondition.LEFT, "")).setRuleVisible(false);
-            this.addAbility(ability);
-        }
-
-        if (rightAbility != null && !(rightAbility instanceof UnlockThisDoorTriggeredAbility)) {
-            Ability ability = new SimpleStaticAbility(Zone.BATTLEFIELD, new ConditionalContinuousEffect(
-                    new LoseAbilitySourceEffect(rightAbility, Duration.WhileOnBattlefield),
-                    RoomHalfLockedCondition.RIGHT, "")).setRuleVisible(false);
-            this.addAbility(ability);
-        }
-
-        // Add the Special Action to unlock doors.
-        // These will ONLY be active if the corresponding half is LOCKED!
-        if (leftAbility != null) {
-            ManaCosts leftHalfManaCost = null;
-            if (this.getLeftHalfCard() != null && this.getLeftHalfCard().getSpellAbility() != null) {
-                leftHalfManaCost = this.getLeftHalfCard().getSpellAbility().getManaCosts();
-            }
-            RoomUnlockAbility leftUnlockAbility = new RoomUnlockAbility(leftHalfManaCost, true);
-            this.addAbility(leftUnlockAbility.setRuleAtTheTop(true));
-        }
-
-        if (rightAbility != null) {
-            ManaCosts rightHalfManaCost = null;
-            if (this.getRightHalfCard() != null && this.getRightHalfCard().getSpellAbility() != null) {
-                rightHalfManaCost = this.getRightHalfCard().getSpellAbility().getManaCosts();
-            }
-            RoomUnlockAbility rightUnlockAbility = new RoomUnlockAbility(rightHalfManaCost, false);
-            this.addAbility(rightUnlockAbility.setRuleAtTheTop(true));
-        }
-
-        this.addAbility(new RoomAbility());
     }
 
     @Override
@@ -130,6 +74,34 @@ public abstract class RoomCard extends SplitCard {
 
         game.setZone(getLeftHalfCard().getId(), zone);
         game.setZone(getRightHalfCard().getId(), zone);
+    }
+
+    public static void addRoomCharacteristics(Permanent permanent, RoomCard roomCard, Game game) {
+        // 709.5.
+        // Some split cards are permanent cards with a single shared type line. A shared type line 
+        // on such an object represents two static abilities that function on the battlefield. These 
+        // are “As long as this permanent doesn’t have the ‘left half unlocked’ designation, it 
+        // doesn’t have the name, mana cost, or rules text of this object’s left half” and “As long 
+        // as this permanent doesn’t have the ‘right half unlocked’ designation, it doesn’t have the 
+        // name, mana cost, or rules text of this object’s right half.” These abilities, as well as 
+        // which half of that permanent a characteristic is in, are part of that object’s copiable 
+        // values.
+
+        // add all rooms data, real rule apply by RoomCharacteristicsEffect
+        // if you catch duplicated effect then debug effect's code
+
+        permanent.setName(roomCard.getName());
+        permanent.setManaCost(roomCard.getManaCost());
+
+        Abilities<Ability> leftAbilities = roomCard.getLeftHalfCard().getAbilities();
+        for (Ability ability : leftAbilities) {
+            permanent.addAbility(ability, roomCard.getLeftHalfCard().getId(), game, true);
+        }
+
+        Abilities<Ability> rightAbilities = roomCard.getRightHalfCard().getAbilities();
+        for (Ability ability : rightAbilities) {
+            permanent.addAbility(ability, roomCard.getRightHalfCard().getId(), game, true);
+        }
     }
 }
 
@@ -161,55 +133,20 @@ class RoomEnterUnlockEffect extends OneShotEffect {
         }
 
         permanent.unlockRoomOnCast(game);
-        RoomCard roomCard = null;
+
         // Get the parent card to access the lastCastHalf variable
-        if (permanent instanceof PermanentToken) {
-            Card mainCard = permanent.getMainCard();
-            if (mainCard instanceof RoomCard) {
-                roomCard = (RoomCard) mainCard;
-            }
-        } else {
-            Card card = game.getCard(permanent.getId());
-            if (card instanceof RoomCard) {
-                roomCard = (RoomCard) card;
-            }
-        }
-        if (roomCard == null) {
+        RoomCard roomCardBlueprint = (RoomCard) RoomCharacteristicsEffect.findRoomCard(permanent);
+        if (roomCardBlueprint == null) {
             return true;
         }
 
-        SpellAbilityType lastCastHalf = roomCard.getLastCastHalf();
-
+        // TODO: possible buggy with AI -- find spell mode by spell ability and do not store it in card's data due game states isolation?!
+        SpellAbilityType lastCastHalf = roomCardBlueprint.getLastCastHalf();
         if (lastCastHalf == SpellAbilityType.SPLIT_LEFT || lastCastHalf == SpellAbilityType.SPLIT_RIGHT) {
-            roomCard.setLastCastHalf(null);
+            roomCardBlueprint.setLastCastHalf(null);
             return permanent.unlockDoor(game, source, lastCastHalf == SpellAbilityType.SPLIT_LEFT);
         }
 
         return true;
-    }
-}
-
-// For the overall Room card flavor text and mana value effect.
-class RoomAbility extends SimpleStaticAbility {
-    public RoomAbility() {
-        super(Zone.ALL, null);
-        this.setRuleVisible(true);
-        this.setRuleAtTheTop(true);
-        this.addEffect(new RoomCharacteristicsEffect());
-    }
-
-    protected RoomAbility(final RoomAbility ability) {
-        super(ability);
-    }
-
-    @Override
-    public String getRule() {
-        return "<i>(You may cast either half. That door unlocks on the battlefield. " +
-                "As a sorcery, you may pay the mana cost of a locked door to unlock it.)</i>";
-    }
-
-    @Override
-    public RoomAbility copy() {
-        return new RoomAbility(this);
     }
 }

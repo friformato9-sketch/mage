@@ -19,6 +19,8 @@ import mage.target.common.TargetControlledCreaturePermanent;
 import mage.util.CardUtil;
 
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  *
@@ -129,8 +131,6 @@ class TheAesirEscapeValhallaTwoEffect extends OneShotEffect {
         Permanent permanent = game.getPermanent(uuid);
         if (permanent != null) {
             permanent.addCounters(CounterType.P1P1.createInstance(mv), source.getControllerId(), source, game);
-            game.informPlayers(sourceObject.getLogName() + ": " + controller.getLogName() + " puts "
-                    + mv + " +1/+1 counters on " + permanent.getLogName());
         }
         return true;
     }
@@ -158,13 +158,15 @@ class TheAesirEscapeValhallaThreeEffect extends OneShotEffect {
         ExileZone exileZone = game.getExile().getExileZone(exileId);
         Player controller = game.getPlayer(source.getControllerId());
         Permanent sourcePermanent = game.getPermanent(source.getSourceId());
-        if (controller == null || exileZone == null || exileZone.isEmpty()) {
+        if (controller == null) {
             return false;
         }
-        if (sourcePermanent != null) {
-            exileZone.add(sourcePermanent);
-        }
-        controller.moveCards(exileZone, Zone.HAND, source, game);
+        controller.moveCards(
+            Stream.concat(
+                (sourcePermanent != null) ? Stream.of(sourcePermanent) : Stream.of(),
+                exileZone.getCards(game).stream()
+            ).collect(Collectors.toSet()),
+        Zone.HAND, source, game);
         return true;
     }
 

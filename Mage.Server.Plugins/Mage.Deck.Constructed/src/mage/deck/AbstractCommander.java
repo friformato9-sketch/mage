@@ -1,10 +1,12 @@
 package mage.deck;
 
 import mage.ObjectColor;
+import mage.abilities.Abilities;
 import mage.abilities.Ability;
 import mage.abilities.common.CanBeYourCommanderAbility;
 import mage.abilities.common.CommanderChooseColorAbility;
 import mage.abilities.keyword.CompanionAbility;
+import mage.abilities.keyword.RulebreakerAbility;
 import mage.abilities.keyword.StationLevelAbility;
 import mage.cards.Card;
 import mage.cards.decks.Constructed;
@@ -13,6 +15,7 @@ import mage.cards.decks.DeckValidatorErrorType;
 import mage.constants.CardType;
 import mage.constants.SubType;
 import mage.filter.FilterMana;
+import mage.filter.StaticFilters;
 import mage.util.CardUtil;
 import mage.util.ManaUtil;
 import mage.util.validation.*;
@@ -28,7 +31,6 @@ public abstract class AbstractCommander extends Constructed {
     private static List<CommanderValidator> validators = Arrays.asList(
             PartnerValidator.instance,
             PartnerVariantValidator.instance,
-            FriendsForeverValidator.instance,
             PartnerWithValidator.instance,
             ChooseABackgroundValidator.instance,
             DoctorsCompanionValidator.instance
@@ -36,6 +38,7 @@ public abstract class AbstractCommander extends Constructed {
     protected final List<String> bannedCommander = new ArrayList<>();
     protected final List<String> bannedPartner = new ArrayList<>();
     protected boolean partnerAllowed = true;
+    protected final List<String> bannedCompanion = new ArrayList<>();
 
     public AbstractCommander(String name) {
         super(name);
@@ -91,7 +94,7 @@ public abstract class AbstractCommander extends Constructed {
         return false;
     }
 
-    private boolean checkColorIdentity(Deck deck, FilterMana colorIdentity, Set<Card> commanders) {
+    private boolean checkColorIdentity(Deck deck, FilterMana colorIdentity, Set<Card> commanders, Set<RulebreakerAbility> rulebreakers) {
         int piperCount = commanders
                 .stream()
                 .filter(CommanderChooseColorAbility::checkCard)
@@ -101,13 +104,48 @@ public abstract class AbstractCommander extends Constructed {
             boolean valid = true;
             for (Card card : deck.getCards()) {
                 if (!ManaUtil.isColorIdentityCompatible(colorIdentity, card.getColorIdentity())) {
-                    addError(DeckValidatorErrorType.OTHER, card.getName(), "Invalid color (need " + colorIdentity + ", but get " + card.getColorIdentity() + ")", true);
-                    valid = false;
+                    boolean allowedRuleBreak = false;
+                    for (RulebreakerAbility rulebreaker : rulebreakers) {
+                        if (rulebreaker.getFilter() == null) {
+                            break;
+                        }
+                        if (rulebreaker.getFilter().match(card, null)) {
+                            if (rulebreaker.getOnlyOneExtraColor() && !StaticFilters.FILTER_CARD_BASIC_LAND.match(card, null)) {
+                                // If we ever decide (or need) to formally support the ability to have more than one
+                                // Rulebreaker, this will need to be reworked.
+                                FilterMana restrictedColor = card.getColorIdentity().copy();
+                                restrictedColor.removeAll(colorIdentity);
+                                if (restrictedColor.getColorCount() == 1) {
+                                    ObjectColor extraColor = restrictedColor.getColors().get(0);
+                                    if (rulebreaker.getExtraColor() == null) {
+                                        rulebreaker.setExtraColor(extraColor);
+                                        allowedRuleBreak = true;
+                                        break;
+                                    }
+                                    if (rulebreaker.getExtraColor() == extraColor) {
+                                        allowedRuleBreak = true;
+                                        break;
+                                    }
+                                }
+                            } else {
+                                allowedRuleBreak = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!allowedRuleBreak) {
+                        FilterMana restrictedColor = card.getColorIdentity().copy();
+                        restrictedColor.removeAll(colorIdentity);
+                        addError(DeckValidatorErrorType.OTHER, card.getName(), "Invalid color identity (includes " + restrictedColor + ", but your commander(s) allow only " + colorIdentity + ")", true);
+                        valid = false;
+                    }
                 }
             }
             for (Card card : deck.getSideboard()) {
                 if (!ManaUtil.isColorIdentityCompatible(colorIdentity, card.getColorIdentity())) {
-                    addError(DeckValidatorErrorType.OTHER, card.getName(), "Invalid color (need " + colorIdentity + ", but get " + card.getColorIdentity() + ")", true);
+                    FilterMana restrictedColor = card.getColorIdentity().copy();
+                    restrictedColor.removeAll(colorIdentity);
+                    addError(DeckValidatorErrorType.OTHER, card.getName(), "Invalid color identity (includes " + restrictedColor + ", but your commander(s) allow only " + colorIdentity + ")", true);
                     valid = false;
                 }
             }
@@ -199,10 +237,25 @@ public abstract class AbstractCommander extends Constructed {
                 valid = false;
         }
 
-        if (companion != null && deck.getMaindeckCards().size() + deck.getSideboard().size() != 101) {
+        Set<RulebreakerAbility> rulebreakers = new HashSet<>();
+        for (Card commander : commanders) {
+            for (Ability ability : commander.getAbilities()) {
+                if (ability instanceof RulebreakerAbility) {
+                    rulebreakers.add((RulebreakerAbility) ability);
+                }
+            }
+        }
+        boolean maximumDeckSize = true;
+        for (RulebreakerAbility rulebreaker : rulebreakers) {
+            if (!rulebreaker.getMaximumDeckSize()) {
+                maximumDeckSize = false;
+                break;
+            }
+        }
+        if (companion != null && (deck.getMaindeckCards().size() + deck.getSideboard().size() < 101 || (deck.getMaindeckCards().size() + deck.getSideboard().size() > 101 && maximumDeckSize))) {
             addError(DeckValidatorErrorType.DECK_SIZE, "Deck", "Must contain " + 101 + " cards (companion doesn't count for deck size): has " + (deck.getMaindeckCards().size() + deck.getSideboard().size()) + " cards");
             valid = false;
-        } else if (companion == null && deck.getMaindeckCards().size() + deck.getSideboard().size() != 100) {
+        } else if (companion == null && (deck.getMaindeckCards().size() + deck.getSideboard().size() < 100 || (deck.getMaindeckCards().size() + deck.getSideboard().size() > 100 && maximumDeckSize))) {
             addError(DeckValidatorErrorType.DECK_SIZE, "Deck", "Must contain " + 100 + " cards: has " + (deck.getMaindeckCards().size() + deck.getSideboard().size()) + " cards");
             valid = false;
         }
@@ -230,12 +283,17 @@ public abstract class AbstractCommander extends Constructed {
             ManaUtil.collectColorIdentity(colorIdentity, commander.getColorIdentity());
         }
 
+        if (companion != null && bannedCompanion.contains(companion.getName())) {
+            addError(DeckValidatorErrorType.PRIMARY, companion.getName(), "Companion banned (" + companion.getName() + ')', true);
+            valid = false;
+        }
+
         // no needs in cards check on wrong commanders
         if (!valid) {
             return false;
         }
 
-        valid = checkColorIdentity(deck, colorIdentity, commanders);
+        valid = checkColorIdentity(deck, colorIdentity, commanders, rulebreakers);
 
         for (Card card : deck.getCards()) {
             if (!isSetAllowed(card.getExpansionSetCode())) {

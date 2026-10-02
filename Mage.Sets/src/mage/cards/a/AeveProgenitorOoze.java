@@ -16,7 +16,6 @@ import mage.filter.common.FilterControlledPermanent;
 import mage.filter.predicate.mageobject.AnotherPredicate;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
-import mage.game.permanent.PermanentToken;
 
 import java.util.UUID;
 
@@ -47,8 +46,7 @@ public final class AeveProgenitorOoze extends CardImpl {
 
         // Aeve enters the battlefield with a +1/+1 counter on it for each other Ooze you control.
         this.addAbility(new EntersBattlefieldAbility(new AddCountersSourceEffect(
-                CounterType.P1P1.createInstance(), new PermanentsOnBattlefieldCount(filter), true
-        ), "with a +1/+1 counter on it for each other Ooze you control"
+                CounterType.P1P1.createInstance(), new PermanentsOnBattlefieldCount(filter)), "with a +1/+1 counter on it for each other Ooze you control"
         ));
     }
 
@@ -81,7 +79,7 @@ class AeveProgenitorOozeNonLegendaryEffect extends ContinuousEffectImpl {
     @Override
     public boolean apply(Game game, Ability source) {
         Permanent permanent = game.getPermanent(source.getSourceId());
-        if (permanent instanceof PermanentToken) {
+        if (permanent.isToken()) {
             permanent.removeSuperType(game, SuperType.LEGENDARY);
             return true;
         }

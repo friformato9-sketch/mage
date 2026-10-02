@@ -14,7 +14,7 @@ import mage.counters.CounterType;
 import mage.filter.StaticFilters;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
-import mage.game.permanent.token.ElementalTokenWithHaste;
+import mage.game.permanent.token.ElementalHasteToken;
 import mage.players.Player;
 
 import java.util.UUID;
@@ -30,7 +30,7 @@ public final class LightningCoils extends CardImpl {
         // Whenever a nontoken creature you control dies, put a charge counter on Lightning Coils.
         this.addAbility(
                 new DiesCreatureTriggeredAbility(
-                        new AddCountersSourceEffect(CounterType.CHARGE.createInstance(), true),
+                        new AddCountersSourceEffect(CounterType.CHARGE.createInstance()),
                         false, StaticFilters.FILTER_CONTROLLED_CREATURE_NON_TOKEN));
 
         // At the beginning of your upkeep, if Lightning Coils has five or more charge counters on it, remove all of them from it  and put that many 3/1 red Elemental creature tokens with haste onto the battlefield. Exile them at the beginning of the next end step.
@@ -67,7 +67,7 @@ class LightningCoilsEffect extends OneShotEffect {
             if (counters >= 5) {
                 // remove all the counters and create that many tokens
                 permanent.removeAllCounters(CounterType.CHARGE.getName(), source, game);
-                CreateTokenEffect effect = new CreateTokenEffect(new ElementalTokenWithHaste(), counters);
+                CreateTokenEffect effect = new CreateTokenEffect(new ElementalHasteToken(), counters);
                 effect.apply(game, source);
 
                 // exile those tokens at next end step

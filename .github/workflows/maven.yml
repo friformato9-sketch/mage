@@ -1,0 +1,49 @@
+name: Build and run tests (github)
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+    types: ["opened", "ready_for_review", "reopened", "synchronize"]
+  schedule:
+    - cron: '0 1 * * *'
+
+  # allow manual run
+  workflow_dispatch: {}
+
+# allow fast cancel on new commit to the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - java: '17'
+            distribution: 'temurin'
+            package: 'jdk' # good
+          #- java: '8'
+          #  distribution: 'zulu'
+          #  package: 'jdk+fx' # good, baseline for app's release
+          #- java: '21'
+          #  distribution: 'temurin'
+          #  package: 'jdk' # good
+          #- java: '26'
+          #  distribution: 'temurin'
+          #  package: 'jdk' # bad, javac 26 no longer accepts release 8
+    steps:
+    - uses: actions/checkout@v6
+    - name: Setup JDK ${{ matrix.java }}
+      uses: actions/setup-java@v5
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: ${{ matrix.distribution }}
+        java-package: ${{ matrix.package }}
+        cache: maven
+    - name: Build and test
+      run: mvn test -B -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:${GITHUB_WORKSPACE}/.travis/log4j.properties

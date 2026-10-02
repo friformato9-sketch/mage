@@ -641,7 +641,7 @@ public class StackAbility extends StackObjectImpl implements Ability {
     }
 
     @Override
-    public void addWatcher(Watcher watcher) {
+    public Ability addWatcher(Watcher watcher) {
         throw new UnsupportedOperationException("Not supported.");
     }
 
@@ -678,6 +678,11 @@ public class StackAbility extends StackObjectImpl implements Ability {
     @Override
     public void setSourceObjectZoneChangeCounter(int zoneChangeCounter) {
         ability.setSourceObjectZoneChangeCounter(zoneChangeCounter);
+    }
+
+    @Override
+    public Permanent getPermanentSourceAttachedToIfItStillExists(Game game) {
+        return this.ability.getPermanentSourceAttachedToIfItStillExists(game);
     }
 
     @Override
