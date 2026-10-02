@@ -1,5 +1,9 @@
 # XMage — Magic, Another Game Engine
 
+> **This fork:** the MageZero engine behind the Devourer of Truth Telegram bot (branch
+> `feature/telegram-sim`): full-game simulations, rules scenarios and an LLM-advised minimax player.
+> See [FORK.md](FORK.md); the rest of this readme is upstream XMage's.
+
 [![Build Status](https://github.com/magefree/mage/actions/workflows/maven.yml/badge.svg)](https://github.com/magefree/mage/actions/workflows/maven.yml)
 [![Latest release](https://img.shields.io/github/v/release/magefree/mage)](https://github.com/magefree/mage/releases/)
 [![Commits since latest release](https://img.shields.io/github/commits-since/magefree/mage/latest)](https://github.com/magefree/mage/commits/)

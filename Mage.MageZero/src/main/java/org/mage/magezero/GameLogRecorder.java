@@ -32,8 +32,9 @@ import java.util.regex.Pattern;
  * Records the human-readable game log of a single (non-simulated) game as JSON Lines, one event per line,
  * flushed immediately so an external consumer (e.g. the Telegram bot) can stream the game turn by turn.
  * <p>
- * Events: game_start, turn_start, log, life, turn_end, game_end. Every card referenced by a log line is
- * resolved to its printing (set code + collector number) so consumers can fetch the exact card image.
+ * Events: game_start, turn_start, log, life, state (the full board after a log line, written only when it
+ * changed), turn_end, game_end. Every card referenced by a log line is resolved to its printing (set code +
+ * collector number) so consumers can fetch the exact card image.
  * <p>
  * Hooks into {@link Game#addTableEventListener}, which only fires for the real game: AI simulation copies
  * get a fresh, listener-less TableEventSource, so search noise never reaches the log.
