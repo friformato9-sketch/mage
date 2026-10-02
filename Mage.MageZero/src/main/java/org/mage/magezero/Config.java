@@ -61,6 +61,8 @@ public class Config {
         public String deckPath;
         public String type;
         public String outputFile;
+        /** when set, a minimax player consults this advisor service (see ComputerPlayerAdvised) */
+        public final String advisorUrl;
         public final PriorsConfig priors;
         public final NoiseConfig noise;
         public final MctsConfig mcts;
@@ -72,6 +74,8 @@ public class Config {
             this.deckPath = (String) raw.get("deckPath");
             this.type = (String) raw.getOrDefault("type", "mcts");
             this.outputFile = (String) raw.getOrDefault("output_file", "");
+            Map<String, Object> advisor = (Map<String, Object>) raw.getOrDefault("advisor", Collections.emptyMap());
+            this.advisorUrl = (String) advisor.getOrDefault("url", null);
             this.priors = new PriorsConfig((Map<String, Object>) raw.getOrDefault("priors", Collections.emptyMap()));
             this.noise = new NoiseConfig((Map<String, Object>) raw.getOrDefault("noise", Collections.emptyMap()));
             this.mcts = new MctsConfig((Map<String, Object>) raw.getOrDefault("mcts", Collections.emptyMap()));

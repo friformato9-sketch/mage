@@ -72,6 +72,9 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected Combat combat;
     protected int currentScore;
     protected SimulationNode2 root;
+    // MageZero: every action this player considered at the root of the last search, with its score.
+    // The search itself keeps only the best node; advisors need the alternatives too.
+    protected final transient List<RootCandidate> rootCandidates = new ArrayList<>();
     List<Permanent> attackersList = new ArrayList<>();
     List<Permanent> attackersToCheck = new ArrayList<>();
 
@@ -441,6 +444,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
         //  multithreading do not supported here
         // run new game simulation in parallel thread
         //assert (threadPoolSimulations != null);
+        rootCandidates.clear();
         FutureTask<Integer> task = new FutureTask<>(() -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
         threadPoolSimulations.execute(task);
         try {
@@ -569,6 +573,9 @@ public class ComputerPlayer6 extends ComputerPlayer {
                     finalScore = addActions(newNode, depth - 1, alpha, beta);
                 }
                 logger.debug("Sim Prio " + BLANKS.substring(0, 2 + (maxDepth - depth) * 3) + '[' + depth + "]#" + actionNumber + " <" + finalScore + "> - (" + action + ") ");
+                if (depth == maxDepth && currentPlayer.getId().equals(playerId)) {
+                    rootCandidates.add(new RootCandidate(action, newNode, finalScore));
+                }
 
                 // Hints on data:
                 // * node - started game with executed command (pay and put on stack)

@@ -5,7 +5,9 @@ import mage.game.permanent.Permanent;
 import mage.players.Player;
 import org.apache.log4j.Logger;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import mage.abilities.Ability;
@@ -39,6 +41,31 @@ public final class GameStateEvaluator2 {
     // boosts are not counted as lasting value. -Dmagezero.eval.afterCleanup=false disables it.
     private static final boolean EVALUATE_AFTER_CLEANUP =
             Boolean.parseBoolean(System.getProperty("magezero.eval.afterCleanup", "true"));
+
+    /**
+     * MageZero: how much each part of the score matters for one player's searches, set by an advisor
+     * that rejected the engine's pick ("life matters more now", "go for the opponent's life"...).
+     */
+    public static final class Weights {
+        public final double myLife, opponentLife, board, cardsInHand;
+
+        public Weights(double myLife, double opponentLife, double board, double cardsInHand) {
+            this.myLife = myLife;
+            this.opponentLife = opponentLife;
+            this.board = board;
+            this.cardsInHand = cardsInHand;
+        }
+    }
+
+    private static final Map<UUID, Weights> WEIGHTS = new ConcurrentHashMap<>();
+
+    public static void setWeights(UUID playerId, Weights weights) {
+        WEIGHTS.put(playerId, weights);
+    }
+
+    public static void clearWeights(UUID playerId) {
+        WEIGHTS.remove(playerId);
+    }
 
     public static PlayerEvaluateScore evaluate(UUID playerId, Game game) {
         return evaluate(playerId, game, true);
@@ -134,6 +161,16 @@ public final class GameStateEvaluator2 {
         int playerHandScore = handScore(player, game);
         int opponentHandScore = handScore(opponent, game);
 
+        Weights w = WEIGHTS.get(playerId);
+        if (w != null) {
+            // getTotalScore() sums the parts, so the weights go on each part
+            playerLifeScore = (int) Math.round(w.myLife * playerLifeScore);
+            opponentLifeScore = (int) Math.round(w.opponentLife * opponentLifeScore);
+            playerPermanentsScore = (int) Math.round(w.board * playerPermanentsScore);
+            opponentPermanentsScore = (int) Math.round(w.board * opponentPermanentsScore);
+            playerHandScore = (int) Math.round(w.cardsInHand * playerHandScore);
+            opponentHandScore = (int) Math.round(w.cardsInHand * opponentHandScore);
+        }
         int score = (playerLifeScore - opponentLifeScore)
                 + (playerPermanentsScore - opponentPermanentsScore)
                 + (playerHandScore - opponentHandScore);

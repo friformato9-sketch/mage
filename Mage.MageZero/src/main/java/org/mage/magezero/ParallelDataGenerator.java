@@ -617,6 +617,9 @@ public class ParallelDataGenerator {
     protected Player createPlayer(String name, RangeOfInfluence rangeOfInfluence) {
         if (name.equals("PlayerA")) {
             if(Config.INSTANCE.playerA.type.equals("minimax")) {
+                if (Config.INSTANCE.playerA.advisorUrl != null) {
+                    return new ComputerPlayerAdvised(name, RangeOfInfluence.ONE, 6, Config.INSTANCE.playerA.advisorUrl);
+                }
                 ComputerPlayer8 t8 = new ComputerPlayer8(name, RangeOfInfluence.ONE, 6);
                 return t8;
             }
@@ -627,6 +630,9 @@ public class ParallelDataGenerator {
 
         } else {
             if(Config.INSTANCE.playerB.type.equals("minimax")) {
+                if (Config.INSTANCE.playerB.advisorUrl != null) {
+                    return new ComputerPlayerAdvised(name, RangeOfInfluence.ONE, 6, Config.INSTANCE.playerB.advisorUrl);
+                }
                 ComputerPlayer8 t8 = new ComputerPlayer8(name, RangeOfInfluence.ONE, 6);
                 return t8;
             }

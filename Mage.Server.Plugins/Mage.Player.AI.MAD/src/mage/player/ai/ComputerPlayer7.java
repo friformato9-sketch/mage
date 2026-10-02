@@ -111,6 +111,15 @@ public class ComputerPlayer7 extends ComputerPlayer6 {
         return false;
     }
 
+    /**
+     * MageZero: last word on the action chain the search picked. Subclasses may consult an advisor
+     * (see {@link #rootCandidates} for the alternatives) and return another node, e.g. after searching
+     * again with different evaluation weights. Must return a root-level node with its abilities.
+     */
+    protected SimulationNode2 chooseRootChild(Game game, SimulationNode2 best) {
+        return best;
+    }
+
     protected void calculateActions(Game game) {
         if (!getNextAction(game)) {
             currentScore = GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
@@ -120,7 +129,7 @@ public class ComputerPlayer7 extends ComputerPlayer6 {
             addActionsTimed(); // TODO: root can be null again after addActionsTimed O_o need to research (it's a CPU AI problem?)
             if (root != null && root.children != null && !root.children.isEmpty()) {
                 logger.trace("After add actions timed: root.children.size = " + root.children.size());
-                root = root.children.get(0);
+                root = chooseRootChild(game, root.children.get(0));
 
                 // prevent repeating always the same action with no cost
                 boolean doThis = true;
