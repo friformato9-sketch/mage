@@ -39,7 +39,9 @@ import java.util.*;
  *           "hand": ["Lightning Bolt"], "graveyard": [], "exile": [], "library": []},
  *     "B": {...}
  *   },
- *   "actions": [                                // executed in order; turn defaults to 1
+ *   "actions": [                                // executed in order; turn/step default to the previous
+ *                                               // action's (attack/block set DECLARE_ATTACKERS/BLOCKERS),
+ *                                               // and to turn 1 PRECOMBAT_MAIN for the first one
  *     {"type": "cast", "player": "A", "card": "Lightning Bolt", "targets": ["Ocelot Pride"],
  *      "step": "PRECOMBAT_MAIN", "in_response_to": "Some Spell", "wait": true},
  *     {"type": "activate", "player": "A", "ability": "{T}, Sacrifice", "targets": []},
@@ -64,6 +66,9 @@ public class ScenarioRunner extends CardTestPlayerBase {
     public static final String FILLER_CARD = "Wastes";
 
     private final List<String> warnings = new ArrayList<>();
+    // timing of the previous action, inherited by actions that don't give their own
+    private int prevTurn = 1;
+    private PhaseStep prevStep = PhaseStep.PRECOMBAT_MAIN;
 
     public ScenarioRunner(String fillerDeckPath) {
         deckNameA = fillerDeckPath;
@@ -185,8 +190,15 @@ public class ScenarioRunner extends CardTestPlayerBase {
     private int addAction(JsonObject a) {
         String type = str(a, "type", "");
         TestPlayer player = player(str(a, "player", "A"));
-        int turn = integer(a, "turn", 1);
-        PhaseStep step = step(str(a, "step", "PRECOMBAT_MAIN"));
+        // actions read like a story: without an explicit turn/step they happen when the previous one did
+        int turn = integer(a, "turn", prevTurn);
+        PhaseStep step = a.has("step") && !a.get("step").isJsonNull() ? step(a.get("step").getAsString()) : prevStep;
+        if (!type.equals("choice") && !type.equals("target") && !type.equals("mode")) {
+            prevTurn = turn;
+            prevStep = type.equals("attack") ? PhaseStep.DECLARE_ATTACKERS
+                    : type.equals("block") ? PhaseStep.DECLARE_BLOCKERS
+                    : step;
+        }
         List<String> targets = new ArrayList<>();
         if (a.has("targets")) {
             a.getAsJsonArray("targets").forEach(t -> targets.add(t.getAsString()));
