@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import mage.abilities.Ability;
 import mage.abilities.effects.ContinuousEffect;
+import mage.cards.Card;
 import mage.abilities.effects.Effect;
 import mage.constants.Duration;
 import mage.constants.Outcome;
@@ -31,6 +32,9 @@ public final class GameStateEvaluator2 {
     // or any creature on the battlefield, so the AI still develops its board.
     // -Dmagezero.eval.handCardScore=5 restores the original XMage behaviour (for A/B benchmarks).
     public static final int HAND_CARD_SCORE = Integer.getInteger("magezero.eval.handCardScore", 250);
+    // Lands keep the original tiny value: a land is only worth something once played, and at 250 a
+    // land that enters tapped (or costs life, e.g. Steam Vents) looked better kept in hand.
+    public static final int HAND_LAND_SCORE = Integer.getInteger("magezero.eval.handLandScore", 5);
     // MageZero: score the position as it stands after this turn's cleanup, so "until end of turn"
     // boosts are not counted as lasting value. -Dmagezero.eval.afterCleanup=false disables it.
     private static final boolean EVALUATE_AFTER_CLEANUP =
@@ -127,8 +131,8 @@ public final class GameStateEvaluator2 {
         // - additional improve: use revealed data to score opponent's hand:
         //   * known card by card evaluator;
         //   * unknown card by max value (so AI will use reveal to make opponent's total score lower -- is it helps???)
-        int playerHandScore = player.getHand().size() * HAND_CARD_SCORE;
-        int opponentHandScore = opponent.getHand().size() * HAND_CARD_SCORE;
+        int playerHandScore = handScore(player, game);
+        int opponentHandScore = handScore(opponent, game);
 
         int score = (playerLifeScore - opponentLifeScore)
                 + (playerPermanentsScore - opponentPermanentsScore)
@@ -146,6 +150,14 @@ public final class GameStateEvaluator2 {
      * True when a layered effect (P/T boosts, granted abilities, control changes...) ends with this turn.
      * Copying the game only then keeps the after-cleanup evaluation cheap in most positions.
      */
+    private static int handScore(Player player, Game game) {
+        int score = 0;
+        for (Card card : player.getHand().getCards(game)) {
+            score += card.isLand(game) ? HAND_LAND_SCORE : HAND_CARD_SCORE;
+        }
+        return score;
+    }
+
     private static boolean hasEndOfTurnEffects(Game game) {
         for (ContinuousEffect effect : game.getContinuousEffects().getLayeredEffects(game)) {
             if (effect.getDuration() == Duration.EndOfTurn) {
