@@ -185,6 +185,12 @@ public class GameLogRecorder implements Listener<TableEvent> {
             counts.addProperty("library", player.getLibrary().size());
             counts.addProperty("graveyard", player.getGraveyard().size());
             counts.addProperty("poison", player.getCountersCount(CounterType.POISON));
+            // full hand (hidden information is fine here): lets benchmarks spot e.g. a missed land drop
+            JsonArray hand = new JsonArray();
+            for (Card card : player.getHand().getCards(game)) {
+                hand.add(cardRef(card));
+            }
+            counts.add("hand_cards", hand);
             zones.add(player.getName(), counts);
         }
         end.add("battlefield", battlefield);
@@ -257,12 +263,15 @@ public class GameLogRecorder implements Listener<TableEvent> {
         return game.getObject(id);
     }
 
-    private static JsonObject cardRef(MageObject object) {
+    private JsonObject cardRef(MageObject object) {
         JsonObject ref = new JsonObject();
         ref.addProperty("name", object.getName());
         ref.addProperty("set", object.getExpansionSetCode());
         ref.addProperty("number", object.getCardNumber());
         ref.addProperty("token", object instanceof PermanentToken);
+        JsonArray types = new JsonArray();
+        object.getCardType(game).forEach(type -> types.add(type.toString().toLowerCase(Locale.ROOT)));
+        ref.add("types", types);
         return ref;
     }
 

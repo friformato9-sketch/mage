@@ -9,7 +9,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import mage.abilities.Ability;
+import mage.abilities.effects.ContinuousEffect;
 import mage.abilities.effects.Effect;
+import mage.constants.Duration;
 import mage.constants.Outcome;
 
 /**
@@ -24,13 +26,27 @@ public final class GameStateEvaluator2 {
     public static final int WIN_GAME_SCORE = 100000000;
     public static final int LOSE_GAME_SCORE = -WIN_GAME_SCORE;
 
-    public static final int HAND_CARD_SCORE = 5;
+    // MageZero: a card in hand is a resource, not 5 points: with 5, spending a card for a temporary
+    // +2/+2 (worth 1000 on the battlefield) always looked like a gain. 250 stays below a land (300)
+    // or any creature on the battlefield, so the AI still develops its board.
+    // -Dmagezero.eval.handCardScore=5 restores the original XMage behaviour (for A/B benchmarks).
+    public static final int HAND_CARD_SCORE = Integer.getInteger("magezero.eval.handCardScore", 250);
+    // MageZero: score the position as it stands after this turn's cleanup, so "until end of turn"
+    // boosts are not counted as lasting value. -Dmagezero.eval.afterCleanup=false disables it.
+    private static final boolean EVALUATE_AFTER_CLEANUP =
+            Boolean.parseBoolean(System.getProperty("magezero.eval.afterCleanup", "true"));
 
     public static PlayerEvaluateScore evaluate(UUID playerId, Game game) {
         return evaluate(playerId, game, true);
     }
 
     public static PlayerEvaluateScore evaluate(UUID playerId, Game game, boolean useCombatPermanentScore) {
+        if (EVALUATE_AFTER_CLEANUP && hasEndOfTurnEffects(game)) {
+            // evaluate a copy: the search keeps using the original game
+            Game afterCleanup = game.createSimulationForAI();
+            afterCleanup.getState().removeEotEffects(afterCleanup);
+            game = afterCleanup;
+        }
         // TODO: add multi opponents support, so AI can take better actions
         Player player = game.getPlayer(playerId);
         // must find all leaved opponents
@@ -126,6 +142,19 @@ public final class GameStateEvaluator2 {
                 playerLifeScore, playerHandScore, playerPermanentsScore,
                 opponentLifeScore, opponentHandScore, opponentPermanentsScore);
     }
+    /**
+     * True when a layered effect (P/T boosts, granted abilities, control changes...) ends with this turn.
+     * Copying the game only then keeps the after-cleanup evaluation cheap in most positions.
+     */
+    private static boolean hasEndOfTurnEffects(Game game) {
+        for (ContinuousEffect effect : game.getContinuousEffects().getLayeredEffects(game)) {
+            if (effect.getDuration() == Duration.EndOfTurn) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void printBattlefield(Game game, UUID playerId) {
         // hand
         Player player = game.getPlayer(playerId);
