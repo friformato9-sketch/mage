@@ -1,5 +1,8 @@
 package org.mage.magezero;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import mage.cards.decks.Deck;
 import mage.cards.decks.DeckCardLists;
 import mage.cards.decks.importer.DeckImporter;
@@ -7,6 +10,7 @@ import mage.cards.repository.CardInfo;
 import mage.constants.MultiplayerAttackOption;
 import mage.constants.PhaseStep;
 import mage.constants.RangeOfInfluence;
+import mage.counters.CounterType;
 import mage.game.*;
 import mage.game.match.Match;
 import mage.game.match.MatchOptions;
@@ -59,6 +63,9 @@ public class ParallelDataGenerator {
     protected static Map<String, DeckCardLists> loadedDecks = new HashMap<>(); // deck's cache
     protected static Map<String, CardInfo> loadedCardInfo = new HashMap<>(); // db card's cache
     private int maxGameTime = 20;
+    private boolean collectTrainingData = true;
+    private final AtomicInteger gameSeq = new AtomicInteger(0);
+    private final List<JsonObject> gameSummaries = Collections.synchronizedList(new ArrayList<>());
 
 
 
@@ -152,6 +159,18 @@ public class ParallelDataGenerator {
         String deckNameA = extractDeckName(Config.INSTANCE.playerA.deckPath);
         String deckNameB = extractDeckName(Config.INSTANCE.playerB.deckPath);
 
+        if (Config.INSTANCE.mode.equals("simulate")) {
+            // play-only: game logs + summary, no training data
+            collectTrainingData = false;
+            maxGameTime = Config.INSTANCE.training.maxMinutes;
+            logger.info("=========================================");
+            logger.info("   STARTING SIMULATION     ");
+            logger.info("=========================================");
+            runSimulations(Config.INSTANCE.training.games);
+            writeSummary(deckNameA, deckNameB);
+            return;
+        }
+
         String fileA = "data/playerA/" + deckNameA + "_vs_" + deckNameB + ".hdf5";
         String fileB = "data/playerB/" + deckNameB + "_vs_" + deckNameA + ".hdf5";
         if(!Config.INSTANCE.playerA.outputFile.isEmpty()) {
@@ -195,6 +214,7 @@ public class ParallelDataGenerator {
             writeResults(WINRATE_OUT, "WR with " + deckNameA + " vs " +
                     deckNameB + ": " + winCount.get() * 1.0 / gameCount.get() + " in " + gameCount.get() + " games");
         }
+        writeSummary(deckNameA, deckNameB);
 
 
     }
@@ -243,7 +263,7 @@ public class ParallelDataGenerator {
                 public Boolean call() throws Exception {
                     startNs.set(idx, System.nanoTime());
                     GameResult out = runSingleGame();
-                    LSQueue.put(out);
+                    if (collectTrainingData) LSQueue.put(out);
                     return out.didPlayerAWin;
                 }
             });
@@ -296,6 +316,7 @@ public class ParallelDataGenerator {
         return runSingleGame(seed);
     }
     private GameResult runSingleGame(long gameSeed) throws ExecutionException {
+        GameLogRecorder recorder = null;
         try {
 
             Game game;
@@ -358,8 +379,27 @@ public class ParallelDataGenerator {
                     game.setStartingPlayerId(playerB.getId());
                 }
             }
+            int gameIndex = gameSeq.incrementAndGet();
+            if (Config.INSTANCE.logging.gameLogDir != null) {
+                Map<String, String> deckNames = new LinkedHashMap<>();
+                deckNames.put(playerA.getName(), extractDeckName(Config.INSTANCE.playerA.deckPath));
+                deckNames.put(playerB.getName(), extractDeckName(Config.INSTANCE.playerB.deckPath));
+                recorder = new GameLogRecorder(game, Paths.get(Config.INSTANCE.logging.gameLogDir, "game_" + gameIndex + ".jsonl"),
+                        gameIndex, gameSeed, deckNames);
+            }
             game.start(null);
             boolean playerAWon = playerA.hasWon();
+            String winner = playerA.hasWon() ? playerA.getName() : playerB.hasWon() ? playerB.getName() : null;
+            String reason = endReason(game, playerA, playerB, winner);
+            if (recorder != null) recorder.finish(winner, reason);
+            JsonObject summary = new JsonObject();
+            summary.addProperty("game", gameIndex);
+            summary.addProperty("seed", gameSeed);
+            summary.addProperty("winner", winner);
+            summary.addProperty("reason", reason);
+            summary.addProperty("turns", game.getTurnNum());
+            if (recorder != null) summary.addProperty("log", "game_" + gameIndex + ".jsonl");
+            gameSummaries.add(summary);
             //merge to the final features
             synchronized (seenFeatures) {
                 seenFeatures.merge(threadEncoderA.featureMap);
@@ -371,6 +411,7 @@ public class ParallelDataGenerator {
             List<LabeledState> statesB = generateLabeledStatesForGame(threadEncoderB, !playerAWon, Config.INSTANCE.playerB.mcts.tdDiscount);
             return new GameResult(statesA, statesB, playerAWon);
         } catch (Exception e) {
+            if (recorder != null) recorder.finish(null, "error");
             logger.error("Caught an internal AI/Game exception in a worker thread. Ignoring this game. Cause: " + e.getMessage());
             e.printStackTrace();
             throw new ExecutionException("Worker thread failed - ignoring", e);
@@ -442,6 +483,61 @@ public class ParallelDataGenerator {
         return encoder.labeledStates;
 
     }
+    /**
+     * Why the game ended: life, poison, decked, conceded or other for a decisive game;
+     * timeout, turn_limit or draw when nobody won.
+     */
+    private static String endReason(Game game, Player playerA, Player playerB, String winner) {
+        if (winner == null) {
+            if (Thread.currentThread().isInterrupted()) return "timeout";
+            if (game.getTurnNum() >= Config.INSTANCE.training.maxTurns) return "turn_limit";
+            return "draw";
+        }
+        Player loser = winner.equals(playerA.getName()) ? playerB : playerA;
+        if (loser.hasQuit()) return "conceded";
+        if (loser.getLife() <= 0) return "life";
+        if (loser.getCountersCount(CounterType.POISON) >= 10) return "poison";
+        if (loser.getLibrary().size() == 0) return "decked";
+        return "other";
+    }
+
+    /**
+     * Writes summary.json (aggregate results + one entry per game) next to the game logs, if logging is enabled.
+     */
+    private void writeSummary(String deckNameA, String deckNameB) {
+        if (Config.INSTANCE.logging.gameLogDir == null) {
+            return;
+        }
+        JsonObject root = new JsonObject();
+        root.addProperty("player_a", deckNameA);
+        root.addProperty("player_b", deckNameB);
+        root.addProperty("requested", Config.INSTANCE.training.games);
+        JsonArray games = new JsonArray();
+        int winsA = 0, winsB = 0, draws = 0, turns = 0;
+        List<JsonObject> sorted = new ArrayList<>(gameSummaries);
+        sorted.sort(Comparator.comparingInt(o -> o.get("game").getAsInt()));
+        for (JsonObject g : sorted) {
+            games.add(g);
+            turns += g.get("turns").getAsInt();
+            if (g.get("winner").isJsonNull()) draws++;
+            else if (g.get("winner").getAsString().equals("PlayerA")) winsA++;
+            else winsB++;
+        }
+        root.addProperty("completed", sorted.size());
+        root.addProperty("wins_a", winsA);
+        root.addProperty("wins_b", winsB);
+        root.addProperty("draws", draws);
+        root.addProperty("avg_turns", sorted.isEmpty() ? 0 : (double) turns / sorted.size());
+        root.add("games", games);
+        try {
+            Files.createDirectories(Paths.get(Config.INSTANCE.logging.gameLogDir));
+            Files.write(Paths.get(Config.INSTANCE.logging.gameLogDir, "summary.json"),
+                    new GsonBuilder().setPrettyPrinting().serializeNulls().create().toJson(root).getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            logger.error("failed to write summary.json", e);
+        }
+    }
+
     public static String extractDeckName(String deckPath) {
         // Handle both forward and backslashes
         int lastSlash = Math.max(deckPath.lastIndexOf('\\'), deckPath.lastIndexOf('/'));

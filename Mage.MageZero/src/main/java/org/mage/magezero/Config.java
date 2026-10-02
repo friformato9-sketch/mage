@@ -13,6 +13,10 @@ public class Config {
 
     public final String goesFirst;
     public String gameMode;
+    /** train (default): write HDF5 training data; simulate: only game logs + summary, no training data */
+    public final String mode;
+    /** optional constructed format to validate both decks against before playing (e.g. "modern") */
+    public final String format;
     public final PlayerConfig playerA;
     public final PlayerConfig playerB;
     public final TrainingConfig training;
@@ -44,6 +48,8 @@ public class Config {
     private Config(Map<String, Object> raw) {
         this.goesFirst = (String) raw.getOrDefault("goes_first", "random");
         this.gameMode= (String) raw.getOrDefault("game_mode", "normal");
+        this.mode = (String) raw.getOrDefault("mode", "train");
+        this.format = (String) raw.getOrDefault("format", null);
         this.playerA = new PlayerConfig((Map<String, Object>) raw.get("player_a"));
         this.playerB = new PlayerConfig((Map<String, Object>) raw.get("player_b"));
         this.training = new TrainingConfig((Map<String, Object>) raw.get("training"));
@@ -174,11 +180,14 @@ public class Config {
         public final boolean logFeatureHash;
         public final boolean writeFinalWR;
         public final boolean showWr;
+        /** when set, every game writes a turn-by-turn JSONL log (see GameLogRecorder) into this directory */
+        public final String gameLogDir;
 
         public LoggingConfig(Map<String, Object> raw) {
             this.logFeatureHash = (boolean) raw.getOrDefault("log_feature_hash", false);
             this.writeFinalWR = (boolean) raw.getOrDefault("save_final_wr", true);
             this.showWr = (boolean) raw.getOrDefault("show_wr", true);
+            this.gameLogDir = (String) raw.getOrDefault("game_log_dir", null);
         }
     }
 }
