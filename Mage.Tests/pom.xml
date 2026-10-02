@@ -134,18 +134,27 @@
             </plugin>
 
             <!-- empty project for tests, so ignore build lifecycle -->
+            <!-- MageZero: also publish the test classes (TestPlayer, CardTestPlayerAPIImpl) as a test-jar,
+                 used by Mage.MageZero.Scenario to replay rules scenarios -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
                     <skipIfEmpty>true</skipIfEmpty>
                 </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-install-plugin</artifactId>
                 <configuration>
-                    <skip>true</skip>
+                    <skip>false</skip>
                 </configuration>
             </plugin>
             <plugin>

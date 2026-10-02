@@ -1,0 +1,10 @@
+{
+  "players": {
+    "A": {"battlefield": ["Goblin Guide"]},
+    "B": {"battlefield": [{"name": "Ocelot Pride", "counters": {"P1P1": 1}}]}
+  },
+  "actions": [
+    {"type": "attack", "player": "A", "attacker": "Goblin Guide", "defender": "B"},
+    {"type": "block", "player": "B", "blocker": "Ocelot Pride", "attacker": "Goblin Guide"}
+  ]
+}

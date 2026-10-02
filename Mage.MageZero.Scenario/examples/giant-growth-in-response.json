@@ -1,0 +1,11 @@
+{
+  "players": {
+    "A": {"battlefield": ["Mountain"], "hand": ["Lightning Bolt"]},
+    "B": {"battlefield": ["Grizzly Bears", "Forest"], "hand": ["Giant Growth"]}
+  },
+  "actions": [
+    {"type": "cast", "player": "A", "card": "Lightning Bolt", "targets": ["Grizzly Bears"], "wait": false},
+    {"type": "cast", "player": "B", "card": "Giant Growth", "targets": ["Grizzly Bears"], "in_response_to": "Lightning Bolt"},
+    {"type": "wait", "player": "A"}
+  ]
+}

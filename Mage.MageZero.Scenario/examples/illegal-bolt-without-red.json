@@ -1,0 +1,9 @@
+{
+  "players": {
+    "A": {"battlefield": ["Plains"], "hand": ["Lightning Bolt"]},
+    "B": {"battlefield": ["Grizzly Bears"]}
+  },
+  "actions": [
+    {"type": "cast", "player": "A", "card": "Lightning Bolt", "targets": ["Grizzly Bears"]}
+  ]
+}

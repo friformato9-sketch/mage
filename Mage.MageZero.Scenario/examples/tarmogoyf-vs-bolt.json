@@ -1,0 +1,10 @@
+{
+  "description": "Lightning Bolt su Tarmogoyf 2/3 (terra + creatura nei cimiteri)",
+  "players": {
+    "A": {"battlefield": ["Mountain"], "hand": ["Lightning Bolt"]},
+    "B": {"battlefield": ["Tarmogoyf"], "graveyard": ["Mountain", "Grizzly Bears"]}
+  },
+  "actions": [
+    {"type": "cast", "player": "A", "card": "Lightning Bolt", "targets": ["Tarmogoyf"]}
+  ]
+}
